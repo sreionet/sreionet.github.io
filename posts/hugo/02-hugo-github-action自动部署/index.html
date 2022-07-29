@@ -1,0 +1,76 @@
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge,chrome=1"><title>02 Hugo Github Action自动部署静态博客 | 云原生技术圈</title><meta name=viewport content="width=device-width,minimum-scale=1"><meta name=description content="一、前言 使用 Hugo 有一些时间了，把内容上传到 GitHub Pages，从一开始的手动操作，到脚本操作，终于来到了自动化部署。
+部署的流程：
+流程
+本地通过 Hugo 命令创建文件，编写博客，编写好后把改变的内容上传到 GitHub 博客源文件仓库。通过 GitHub Action 自动触发脚本构建，然后把静态文件通过 GitHub Deploy 到博客仓库。
+二、具体步骤 2.1 创建两个仓库  创建博客源仓库   创建博客静态资源仓库  2.2 创建 SSH 需要生成一对 SSH Key，生成的 Public Key 和 Private Key 都会用到。
+ssh-keygen -t rsa -b 4096 -C &ldquo;ironcity.hz@gmail.com&rdquo; Generating public/private rsa key pair. Enter file in which to save the key (/Users/tc/.ssh/id_rsa):
+输入你需要指定的文件，比如 /Users/tc/.ssh/id_rsa_hugo_deploy
+ 只是为了防止覆盖之前创建的默认文件
+ 2.2 配置博客静态资源仓库的 Deploy Keys  添加公钥到 http://funnycode-org."><meta name=generator content="Hugo 0.76.0"><meta name=robots content="noindex, nofollow"><link rel=stylesheet href=/ananke/css/main.min.css><meta property="og:title"content="02 Hugo Github Action自动部署静态博客"><meta property="og:description"content="一、前言 使用 Hugo 有一些时间了，把内容上传到 GitHub Pages，从一开始的手动操作，到脚本操作，终于来到了自动化部署。
+部署的流程：
+流程
+本地通过 Hugo 命令创建文件，编写博客，编写好后把改变的内容上传到 GitHub 博客源文件仓库。通过 GitHub Action 自动触发脚本构建，然后把静态文件通过 GitHub Deploy 到博客仓库。
+二、具体步骤 2.1 创建两个仓库  创建博客源仓库   创建博客静态资源仓库  2.2 创建 SSH 需要生成一对 SSH Key，生成的 Public Key 和 Private Key 都会用到。
+ssh-keygen -t rsa -b 4096 -C &ldquo;ironcity.hz@gmail.com&rdquo; Generating public/private rsa key pair. Enter file in which to save the key (/Users/tc/.ssh/id_rsa):
+输入你需要指定的文件，比如 /Users/tc/.ssh/id_rsa_hugo_deploy
+ 只是为了防止覆盖之前创建的默认文件
+ 2.2 配置博客静态资源仓库的 Deploy Keys  添加公钥到 http://funnycode-org."><meta property="og:type"content="article"><meta property="og:url"content="https://sreionet.github.io/posts/hugo/02-hugo-github-action%E8%87%AA%E5%8A%A8%E9%83%A8%E7%BD%B2/"><meta property="article:published_time"content="2022-07-29T10:55:52+08:00"><meta property="article:modified_time"content="2022-07-29T10:55:52+08:00"><meta itemprop=name content="02 Hugo Github Action自动部署静态博客"><meta itemprop=description content="一、前言 使用 Hugo 有一些时间了，把内容上传到 GitHub Pages，从一开始的手动操作，到脚本操作，终于来到了自动化部署。
+部署的流程：
+流程
+本地通过 Hugo 命令创建文件，编写博客，编写好后把改变的内容上传到 GitHub 博客源文件仓库。通过 GitHub Action 自动触发脚本构建，然后把静态文件通过 GitHub Deploy 到博客仓库。
+二、具体步骤 2.1 创建两个仓库  创建博客源仓库   创建博客静态资源仓库  2.2 创建 SSH 需要生成一对 SSH Key，生成的 Public Key 和 Private Key 都会用到。
+ssh-keygen -t rsa -b 4096 -C &ldquo;ironcity.hz@gmail.com&rdquo; Generating public/private rsa key pair. Enter file in which to save the key (/Users/tc/.ssh/id_rsa):
+输入你需要指定的文件，比如 /Users/tc/.ssh/id_rsa_hugo_deploy
+ 只是为了防止覆盖之前创建的默认文件
+ 2.2 配置博客静态资源仓库的 Deploy Keys  添加公钥到 http://funnycode-org."><meta itemprop=datePublished content="2022-07-29T10:55:52+08:00"><meta itemprop=dateModified content="2022-07-29T10:55:52+08:00"><meta itemprop=wordCount content="262"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="02 Hugo Github Action自动部署静态博客"><meta name=twitter:description content="一、前言 使用 Hugo 有一些时间了，把内容上传到 GitHub Pages，从一开始的手动操作，到脚本操作，终于来到了自动化部署。
+部署的流程：
+流程
+本地通过 Hugo 命令创建文件，编写博客，编写好后把改变的内容上传到 GitHub 博客源文件仓库。通过 GitHub Action 自动触发脚本构建，然后把静态文件通过 GitHub Deploy 到博客仓库。
+二、具体步骤 2.1 创建两个仓库  创建博客源仓库   创建博客静态资源仓库  2.2 创建 SSH 需要生成一对 SSH Key，生成的 Public Key 和 Private Key 都会用到。
+ssh-keygen -t rsa -b 4096 -C &ldquo;ironcity.hz@gmail.com&rdquo; Generating public/private rsa key pair. Enter file in which to save the key (/Users/tc/.ssh/id_rsa):
+输入你需要指定的文件，比如 /Users/tc/.ssh/id_rsa_hugo_deploy
+ 只是为了防止覆盖之前创建的默认文件
+ 2.2 配置博客静态资源仓库的 Deploy Keys  添加公钥到 http://funnycode-org."></head><body class="ma0 avenir bg-near-white"><header><div class=bg-black><nav class="pv3 ph3 ph4-ns"role=navigation><div class="flex-l justify-between items-center center"><a href=/ class="f3 fw2 hover-white no-underline white-90 dib">云原生技术圈</a><div class="flex-l items-center"><div class=ananke-socials></div></div></div></nav></div></header><main class=pb7 role=main><article class="flex-l flex-wrap justify-between mw8 center ph3"><header class="mt4 w-100"><aside class="instapaper_ignoref b helvetica tracked">POSTS</aside><div id=sharing class="mt3 ananke-socials"></div><h1 class="f1 athelas mt3 mb1">02 Hugo Github Action自动部署静态博客</h1><time class="f6 mv4 dib tracked"datetime=2022-07-29T10:55:52+08:00>July 29, 2022</time></header><div class="nested-copy-line-height lh-copy serif f4 nested-links mid-gray pr4-l w-two-thirds-l"><h2 id=一前言>一、前言</h2><p>使用 Hugo 有一些时间了，把内容上传到 GitHub Pages，从一开始的手动操作，到脚本操作，终于来到了自动化部署。</p><p><strong>部署的流程</strong>：</p><p><img src=https://pic4.zhimg.com/v2-1a4d685c2b62ac90419865630a733b47_r.jpg alt></p><p>流程</p><p>本地通过 Hugo 命令创建文件，编写博客，编写好后把改变的内容上传到 GitHub 博客源文件仓库。通过 GitHub Action 自动触发脚本构建，然后把静态文件通过 GitHub Deploy 到博客仓库。</p><h2 id=二具体步骤>二、具体步骤</h2><h3 id=21-创建两个仓库>2.1 创建两个仓库</h3><ul><li>创建博客源仓库</li></ul><p><img src=https://pic1.zhimg.com/v2-426aa6d53e1881ecaa9116555348fad8_r.jpg alt></p><ul><li>创建博客静态资源仓库</li></ul><p><img src=https://pic3.zhimg.com/v2-52d9007ead86ecb210a8ea32341bab5a_r.jpg alt></p><h3 id=22-创建-ssh>2.2 创建 SSH</h3><p>需要生成一对 SSH Key，生成的 Public Key 和 Private Key 都会用到。</p><p>ssh-keygen -t rsa -b 4096 -C &ldquo;<a href=mailto:ironcity.hz@gmail.com>ironcity.hz@gmail.com</a>&rdquo; Generating public/private rsa key pair. Enter file in which to save the key (/Users/tc/.ssh/id_rsa):</p><p>输入你需要指定的文件，比如 <code>/Users/tc/.ssh/id_rsa_hugo_deploy</code></p><blockquote><p>只是为了防止覆盖之前创建的默认文件</p></blockquote><h3 id=22-配置博客静态资源仓库的-deploy-keys>2.2 配置博客静态资源仓库的 Deploy Keys</h3><ul><li>添加公钥到 <a href=http://funnycode-org.github.io>http://funnycode-org.github.io</a> 仓库的 Deploy Keys</li></ul><p><img src=https://pic3.zhimg.com/v2-84e2a55169ec5cc51e443b37edbab3f6_r.jpg alt></p><ul><li>添加后</li></ul><p><img src=https://pic4.zhimg.com/v2-63bf4907ad71b7a519de7370115e8a77_r.jpg alt></p><h3 id=23-配置博客源内容仓库的-secrets>2.3 配置博客源内容仓库的 Secrets</h3><ul><li>添加私钥到 blog 仓库的 Secrets</li></ul><p><img src=https://pic4.zhimg.com/v2-ae16f3078624ce0aed4f3bf9c0960a7b_r.jpg alt></p><ul><li>添加后</li></ul><p><img src=https://pic3.zhimg.com/v2-1b7c067ff8638e517479a794fbb5b7be_r.jpg alt></p><blockquote><p>注意这个 secrets 的名称</p></blockquote><h3 id=24-编写博客>2.4 编写博客</h3><ul><li>克隆 blog 项目到本地</li></ul><p># 选取一个目录 cd ~/Desktop/ # 克隆 source 仓库 git clone <a href=mailto:git@github.com>git@github.com</a>:funnycode-org/blog.git # 进入仓库 cd blog</p><ul><li>创建 hugo 博客</li></ul><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text># 创建博客，多语言模式
+hugo new /posts/[blog-name]/index.zh-cn.md 
+
+# 运行预览效果
+hugo serve -D
+</code></pre></div><p><img src=https://pic1.zhimg.com/v2-54b868c70a19e00945955c8778203e8c_r.jpg alt></p><p>如果没有什么问题就可以准备提交代码了</p><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>git add .
+git commit -m &#34;update commit&#34;
+git push -u origin master
+</code></pre></div><h3 id=25-github-actions-说明>2.5 GitHub Actions 说明</h3><p>Actions 内容：</p><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>name: Deploy Hugo Site to Github Pages on Master Branch
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true  # Fetch Hugo themes (true OR recursive)
+          fetch-depth: 0    # Fetch all history for .GitInfo and .Lastmod
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: &#39;0.76.0&#39;
+          # extended: true
+
+      - name: Build
+        run: hugo --minify
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+          external_repository: funnycode-org/funnycode-org.github.io # remote branch
+          publish_dir: &#34;./docs&#34;
+          cname: blog.funnycode.org.cn          
+          keep_files: false # remove existing files
+          publish_branch: docs  # deploying branch
+          commit_message: ${{ github.event.head_commit.message }}
+</code></pre></div><blockquote><p>注意点：</p></blockquote><ul><li>publish_dir 指定发布的目录，<code>./docs</code> 指 <code>blog</code> 项目下的 <code>docs</code> 目录下的内容会被发布</li><li>publish_branch 发布到 <code>funnycode-org.github.io</code> 项目的 <code>docs</code> 分支</li><li>secrets.ACTIONS_DEPLOY_KEY 的 ACTIONS_DEPLOY_KEY 则是上面设置 Private Key 的变量名</li><li>cname 必须要配置好，和下文提到的 Setting 里面配置图对应</li></ul><h3 id=27-httpfunnycode-orggithubiohttpfunnycode-orggithubio-配置>2.7 <a href=http://funnycode-org.github.io>http://funnycode-org.github.io</a> 配置</h3><ul><li>配置 Setting</li></ul><p><img src=https://pic1.zhimg.com/v2-41f002170a47016d44225629e06dc9e4_r.jpg alt></p><ul><li>验证访问</li></ul><p>输入 <a href=https://blog.funnycode.org.cn/>https://blog.funnycode.org.cn</a>，效果：</p><p><img src=https://pic4.zhimg.com/v2-c6a311552829f7dc822bcf253bca631f_r.jpg alt></p><ul class=pa0></ul><div class="mt6 instapaper_ignoref"></div></div><aside class="w-30-l mt6-l"></aside></article></main><footer class="bg-black bottom-0 w-100 pa3"role=contentinfo><div class="flex justify-between"><a class="f4 fw4 hover-white no-underline white-70 dn dib-ns pv2 ph3"href=https://sreionet.github.io/>&copy; 云原生技术圈 2022</a><div><div class=ananke-socials></div></div></div></footer></body></html>

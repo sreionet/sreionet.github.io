@@ -1,0 +1,313 @@
+<!doctype html><html lang=zh-cn><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge,chrome=1"><title>深入了解Istio Sicader自动注入 | 云原生技术圈</title><meta name=viewport content="width=device-width,minimum-scale=1"><meta name=description content="Sidecar 自动注入机制是将 sidecar 代理自动添加到用户创建的 pod。 它使用 MutatingWebhook 机制在 pod 创建的时候将 sidecar 的容器和卷添加到每个 pod 的模版里。 用户可以通过 webhooks namespaceSelector 机制来限定需要启动自动注入的范围，也可以通过注解的方式针对每个 pod 来单独启用和禁用自动注入功能。
+Sidecar 是否会被自动注入取决于下面 3 条配置和 2 条安全规则：
+配置:  webhooks namespaceSelector 默认策略 policy pod 级别的覆盖注解  安全规则:  sidecar 默认不能被注入到 kube-system 和 kube-public 这两个 namespace sidecar 不能被注入到使用 host network 网络的 pod 里  下面的表格展示了基于上述三个配置条件的最终注入状态。上述的安全规则不会被覆盖。
+   namespaceSelector 匹配 默认策略 sidecar.istio.io/inject 注解 Sidecar 是否注入     是 enabled true (default) 是   是 enabled false 否   是 disabled true 是   是 disabled false (default) 否   否 enabled true (default) 否   否 enabled false 否   否 disabled true 否   否 disabled false (default) 否    以下内容基于Istio 1."><meta name=generator content="Hugo 0.76.0"><meta name=robots content="noindex, nofollow"><link rel=stylesheet href=/ananke/css/main.min.css><meta property="og:title"content="深入了解Istio Sicader自动注入"><meta property="og:description"content="Sidecar 自动注入机制是将 sidecar 代理自动添加到用户创建的 pod。 它使用 MutatingWebhook 机制在 pod 创建的时候将 sidecar 的容器和卷添加到每个 pod 的模版里。 用户可以通过 webhooks namespaceSelector 机制来限定需要启动自动注入的范围，也可以通过注解的方式针对每个 pod 来单独启用和禁用自动注入功能。
+Sidecar 是否会被自动注入取决于下面 3 条配置和 2 条安全规则：
+配置:  webhooks namespaceSelector 默认策略 policy pod 级别的覆盖注解  安全规则:  sidecar 默认不能被注入到 kube-system 和 kube-public 这两个 namespace sidecar 不能被注入到使用 host network 网络的 pod 里  下面的表格展示了基于上述三个配置条件的最终注入状态。上述的安全规则不会被覆盖。
+   namespaceSelector 匹配 默认策略 sidecar.istio.io/inject 注解 Sidecar 是否注入     是 enabled true (default) 是   是 enabled false 否   是 disabled true 是   是 disabled false (default) 否   否 enabled true (default) 否   否 enabled false 否   否 disabled true 否   否 disabled false (default) 否    以下内容基于Istio 1."><meta property="og:type"content="article"><meta property="og:url"content="https://sreionet.github.io/posts/istio/istio%E8%87%AA%E5%8A%A8%E6%B3%A8%E5%85%A5%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/"><meta property="article:published_time"content="2022-05-23T22:06:41+08:00"><meta property="article:modified_time"content="2022-05-23T22:06:41+08:00"><meta itemprop=name content="深入了解Istio Sicader自动注入"><meta itemprop=description content="Sidecar 自动注入机制是将 sidecar 代理自动添加到用户创建的 pod。 它使用 MutatingWebhook 机制在 pod 创建的时候将 sidecar 的容器和卷添加到每个 pod 的模版里。 用户可以通过 webhooks namespaceSelector 机制来限定需要启动自动注入的范围，也可以通过注解的方式针对每个 pod 来单独启用和禁用自动注入功能。
+Sidecar 是否会被自动注入取决于下面 3 条配置和 2 条安全规则：
+配置:  webhooks namespaceSelector 默认策略 policy pod 级别的覆盖注解  安全规则:  sidecar 默认不能被注入到 kube-system 和 kube-public 这两个 namespace sidecar 不能被注入到使用 host network 网络的 pod 里  下面的表格展示了基于上述三个配置条件的最终注入状态。上述的安全规则不会被覆盖。
+   namespaceSelector 匹配 默认策略 sidecar.istio.io/inject 注解 Sidecar 是否注入     是 enabled true (default) 是   是 enabled false 否   是 disabled true 是   是 disabled false (default) 否   否 enabled true (default) 否   否 enabled false 否   否 disabled true 否   否 disabled false (default) 否    以下内容基于Istio 1."><meta itemprop=datePublished content="2022-05-23T22:06:41+08:00"><meta itemprop=dateModified content="2022-05-23T22:06:41+08:00"><meta itemprop=wordCount content="1114"><meta itemprop=keywords content="istio,"><meta name=twitter:card content="summary"><meta name=twitter:title content="深入了解Istio Sicader自动注入"><meta name=twitter:description content="Sidecar 自动注入机制是将 sidecar 代理自动添加到用户创建的 pod。 它使用 MutatingWebhook 机制在 pod 创建的时候将 sidecar 的容器和卷添加到每个 pod 的模版里。 用户可以通过 webhooks namespaceSelector 机制来限定需要启动自动注入的范围，也可以通过注解的方式针对每个 pod 来单独启用和禁用自动注入功能。
+Sidecar 是否会被自动注入取决于下面 3 条配置和 2 条安全规则：
+配置:  webhooks namespaceSelector 默认策略 policy pod 级别的覆盖注解  安全规则:  sidecar 默认不能被注入到 kube-system 和 kube-public 这两个 namespace sidecar 不能被注入到使用 host network 网络的 pod 里  下面的表格展示了基于上述三个配置条件的最终注入状态。上述的安全规则不会被覆盖。
+   namespaceSelector 匹配 默认策略 sidecar.istio.io/inject 注解 Sidecar 是否注入     是 enabled true (default) 是   是 enabled false 否   是 disabled true 是   是 disabled false (default) 否   否 enabled true (default) 否   否 enabled false 否   否 disabled true 否   否 disabled false (default) 否    以下内容基于Istio 1."></head><body class="ma0 avenir bg-near-white"><header><div class=bg-black><nav class="pv3 ph3 ph4-ns"role=navigation><div class="flex-l justify-between items-center center"><a href=/ class="f3 fw2 hover-white no-underline white-90 dib">云原生技术圈</a><div class="flex-l items-center"><div class=ananke-socials></div></div></div></nav></div></header><main class=pb7 role=main><article class="flex-l flex-wrap justify-between mw8 center ph3"><header class="mt4 w-100"><aside class="instapaper_ignoref b helvetica tracked">POSTS</aside><div id=sharing class="mt3 ananke-socials"></div><h1 class="f1 athelas mt3 mb1">深入了解Istio Sicader自动注入</h1><time class="f6 mv4 dib tracked"datetime=2022-05-23T22:06:41+08:00>May 23, 2022</time></header><div class="nested-copy-line-height lh-copy serif f4 nested-links mid-gray pr4-l w-two-thirds-l"><p>Sidecar 自动注入机制是将 sidecar 代理自动添加到用户创建的 pod。
+它使用 MutatingWebhook 机制在 pod 创建的时候将 sidecar 的容器和卷添加到每个 pod 的模版里。
+用户可以通过 webhooks namespaceSelector 机制来限定需要启动自动注入的范围，也可以通过注解的方式针对每个 pod 来单独启用和禁用自动注入功能。</p><p>Sidecar 是否会被自动注入取决于下面 3 条配置和 2 条安全规则：</p><h4 id=配置>配置:</h4><ul><li>webhooks namespaceSelector</li><li>默认策略 policy</li><li>pod 级别的覆盖注解</li></ul><h4 id=安全规则>安全规则:</h4><ul><li>sidecar 默认不能被注入到 kube-system 和 kube-public 这两个 namespace</li><li>sidecar 不能被注入到使用 host network 网络的 pod 里</li></ul><p>下面的表格展示了基于上述三个配置条件的最终注入状态。上述的安全规则不会被覆盖。</p><table><thead><tr><th>namespaceSelector 匹配</th><th>默认策略</th><th>sidecar.istio.io/inject 注解</th><th>Sidecar 是否注入</th></tr></thead><tbody><tr><td>是</td><td>enabled</td><td>true (default)</td><td>是</td></tr><tr><td>是</td><td>enabled</td><td>false</td><td>否</td></tr><tr><td>是</td><td>disabled</td><td>true</td><td>是</td></tr><tr><td>是</td><td>disabled</td><td>false (default)</td><td>否</td></tr><tr><td>否</td><td>enabled</td><td>true (default)</td><td>否</td></tr><tr><td>否</td><td>enabled</td><td>false</td><td>否</td></tr><tr><td>否</td><td>disabled</td><td>true</td><td>否</td></tr><tr><td>否</td><td>disabled</td><td>false (default)</td><td>否</td></tr></tbody></table><p>以下内容基于Istio 1.13.2版本</p><h3 id=newwehook方法>NewWehook方法</h3><p>pkg/kube/inject/webhook.go</p><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-go data-lang=go><span style=color:#66d9ef>func</span> <span style=color:#a6e22e>NewWebhook</span>(<span style=color:#a6e22e>p</span> <span style=color:#a6e22e>WebhookParameters</span>) (<span style=color:#f92672>*</span><span style=color:#a6e22e>Webhook</span>, <span style=color:#66d9ef>error</span>) {
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>p</span>.<span style=color:#a6e22e>Mux</span> <span style=color:#f92672>==</span> <span style=color:#66d9ef>nil</span> {
+		<span style=color:#66d9ef>return</span> <span style=color:#66d9ef>nil</span>, <span style=color:#a6e22e>errors</span>.<span style=color:#a6e22e>New</span>(<span style=color:#e6db74>&#34;expected mux to be passed, but was not passed&#34;</span>)
+	}
+
+	<span style=color:#a6e22e>wh</span> <span style=color:#f92672>:=</span> <span style=color:#f92672>&amp;</span><span style=color:#a6e22e>Webhook</span>{
+		<span style=color:#a6e22e>watcher</span>:    <span style=color:#a6e22e>p</span>.<span style=color:#a6e22e>Watcher</span>,
+		<span style=color:#a6e22e>meshConfig</span>: <span style=color:#a6e22e>p</span>.<span style=color:#a6e22e>Env</span>.<span style=color:#a6e22e>Mesh</span>(),
+		<span style=color:#a6e22e>env</span>:        <span style=color:#a6e22e>p</span>.<span style=color:#a6e22e>Env</span>,
+		<span style=color:#a6e22e>revision</span>:   <span style=color:#a6e22e>p</span>.<span style=color:#a6e22e>Revision</span>,
+	}
+
+	<span style=color:#a6e22e>p</span>.<span style=color:#a6e22e>Watcher</span>.<span style=color:#a6e22e>SetHandler</span>(<span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>updateConfig</span>)
+	<span style=color:#a6e22e>sidecarConfig</span>, <span style=color:#a6e22e>valuesConfig</span>, <span style=color:#a6e22e>err</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>p</span>.<span style=color:#a6e22e>Watcher</span>.<span style=color:#a6e22e>Get</span>()
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>err</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+		<span style=color:#66d9ef>return</span> <span style=color:#66d9ef>nil</span>, <span style=color:#a6e22e>err</span>
+	}
+	<span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>updateConfig</span>(<span style=color:#a6e22e>sidecarConfig</span>, <span style=color:#a6e22e>valuesConfig</span>)
+    <span style=color:#75715e>//初始化Webhook实例的时候注册/inject对应的处理器
+</span><span style=color:#75715e></span>	<span style=color:#a6e22e>p</span>.<span style=color:#a6e22e>Mux</span>.<span style=color:#a6e22e>HandleFunc</span>(<span style=color:#e6db74>&#34;/inject&#34;</span>, <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>serveInject</span>)
+	<span style=color:#a6e22e>p</span>.<span style=color:#a6e22e>Mux</span>.<span style=color:#a6e22e>HandleFunc</span>(<span style=color:#e6db74>&#34;/inject/&#34;</span>, <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>serveInject</span>)
+
+	<span style=color:#a6e22e>p</span>.<span style=color:#a6e22e>Env</span>.<span style=color:#a6e22e>Watcher</span>.<span style=color:#a6e22e>AddMeshHandler</span>(<span style=color:#66d9ef>func</span>() {
+		<span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>mu</span>.<span style=color:#a6e22e>Lock</span>()
+		<span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>meshConfig</span> = <span style=color:#a6e22e>p</span>.<span style=color:#a6e22e>Env</span>.<span style=color:#a6e22e>Mesh</span>()
+		<span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>mu</span>.<span style=color:#a6e22e>Unlock</span>()
+	})
+
+	<span style=color:#66d9ef>return</span> <span style=color:#a6e22e>wh</span>, <span style=color:#66d9ef>nil</span>
+}
+</code></pre></div><p><img src=https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220906152039.png alt=NewWehook方法></p><h3 id=serveinject方法>serveInject方法</h3><p>pkg/kube/inject/webhook.go 大概825-895行</p><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-go data-lang=go><span style=color:#66d9ef>func</span> (<span style=color:#a6e22e>wh</span> <span style=color:#f92672>*</span><span style=color:#a6e22e>Webhook</span>) <span style=color:#a6e22e>serveInject</span>(<span style=color:#a6e22e>w</span> <span style=color:#a6e22e>http</span>.<span style=color:#a6e22e>ResponseWriter</span>, <span style=color:#a6e22e>r</span> <span style=color:#f92672>*</span><span style=color:#a6e22e>http</span>.<span style=color:#a6e22e>Request</span>) {
+	<span style=color:#a6e22e>totalInjections</span>.<span style=color:#a6e22e>Increment</span>()
+	<span style=color:#66d9ef>var</span> <span style=color:#a6e22e>body</span> []<span style=color:#66d9ef>byte</span>
+    <span style=color:#75715e>// 获取请求体
+</span><span style=color:#75715e></span>	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>r</span>.<span style=color:#a6e22e>Body</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+		<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>data</span>, <span style=color:#a6e22e>err</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>kube</span>.<span style=color:#a6e22e>HTTPConfigReader</span>(<span style=color:#a6e22e>r</span>); <span style=color:#a6e22e>err</span> <span style=color:#f92672>==</span> <span style=color:#66d9ef>nil</span> {
+			<span style=color:#a6e22e>body</span> = <span style=color:#a6e22e>data</span>
+		} <span style=color:#66d9ef>else</span> {
+			<span style=color:#a6e22e>http</span>.<span style=color:#a6e22e>Error</span>(<span style=color:#a6e22e>w</span>, <span style=color:#a6e22e>err</span>.<span style=color:#a6e22e>Error</span>(), <span style=color:#a6e22e>http</span>.<span style=color:#a6e22e>StatusBadRequest</span>)
+			<span style=color:#66d9ef>return</span>
+		}
+	}
+	<span style=color:#66d9ef>if</span> len(<span style=color:#a6e22e>body</span>) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span> {
+		<span style=color:#a6e22e>handleError</span>(<span style=color:#e6db74>&#34;no body found&#34;</span>)
+		<span style=color:#a6e22e>http</span>.<span style=color:#a6e22e>Error</span>(<span style=color:#a6e22e>w</span>, <span style=color:#e6db74>&#34;no body found&#34;</span>, <span style=color:#a6e22e>http</span>.<span style=color:#a6e22e>StatusBadRequest</span>)
+		<span style=color:#66d9ef>return</span>
+	}
+
+	<span style=color:#75715e>// verify the content type is accurate
+</span><span style=color:#75715e></span>	<span style=color:#a6e22e>contentType</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>r</span>.<span style=color:#a6e22e>Header</span>.<span style=color:#a6e22e>Get</span>(<span style=color:#e6db74>&#34;Content-Type&#34;</span>)
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>contentType</span> <span style=color:#f92672>!=</span> <span style=color:#e6db74>&#34;application/json&#34;</span> {
+		<span style=color:#a6e22e>handleError</span>(<span style=color:#a6e22e>fmt</span>.<span style=color:#a6e22e>Sprintf</span>(<span style=color:#e6db74>&#34;contentType=%s, expect application/json&#34;</span>, <span style=color:#a6e22e>contentType</span>))
+		<span style=color:#a6e22e>http</span>.<span style=color:#a6e22e>Error</span>(<span style=color:#a6e22e>w</span>, <span style=color:#e6db74>&#34;invalid Content-Type, want `application/json`&#34;</span>, <span style=color:#a6e22e>http</span>.<span style=color:#a6e22e>StatusUnsupportedMediaType</span>)
+		<span style=color:#66d9ef>return</span>
+	}
+
+	<span style=color:#a6e22e>path</span> <span style=color:#f92672>:=</span> <span style=color:#e6db74>&#34;&#34;</span>
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>r</span>.<span style=color:#a6e22e>URL</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+		<span style=color:#a6e22e>path</span> = <span style=color:#a6e22e>r</span>.<span style=color:#a6e22e>URL</span>.<span style=color:#a6e22e>Path</span>
+	}
+
+	<span style=color:#66d9ef>var</span> <span style=color:#a6e22e>reviewResponse</span> <span style=color:#f92672>*</span><span style=color:#a6e22e>kube</span>.<span style=color:#a6e22e>AdmissionResponse</span>
+	<span style=color:#66d9ef>var</span> <span style=color:#a6e22e>obj</span> <span style=color:#a6e22e>runtime</span>.<span style=color:#a6e22e>Object</span>
+	<span style=color:#66d9ef>var</span> <span style=color:#a6e22e>ar</span> <span style=color:#f92672>*</span><span style=color:#a6e22e>kube</span>.<span style=color:#a6e22e>AdmissionReview</span>
+    <span style=color:#75715e>// 解码请求体
+</span><span style=color:#75715e></span>	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>out</span>, <span style=color:#a6e22e>_</span>, <span style=color:#a6e22e>err</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>deserializer</span>.<span style=color:#a6e22e>Decode</span>(<span style=color:#a6e22e>body</span>, <span style=color:#66d9ef>nil</span>, <span style=color:#a6e22e>obj</span>); <span style=color:#a6e22e>err</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+		<span style=color:#a6e22e>handleError</span>(<span style=color:#a6e22e>fmt</span>.<span style=color:#a6e22e>Sprintf</span>(<span style=color:#e6db74>&#34;Could not decode body: %v&#34;</span>, <span style=color:#a6e22e>err</span>))
+		<span style=color:#a6e22e>reviewResponse</span> = <span style=color:#a6e22e>toAdmissionResponse</span>(<span style=color:#a6e22e>err</span>)
+	} <span style=color:#66d9ef>else</span> {
+		<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Debugf</span>(<span style=color:#e6db74>&#34;AdmissionRequest for path=%s\n&#34;</span>, <span style=color:#a6e22e>path</span>)
+		<span style=color:#a6e22e>ar</span>, <span style=color:#a6e22e>err</span> = <span style=color:#a6e22e>kube</span>.<span style=color:#a6e22e>AdmissionReviewKubeToAdapter</span>(<span style=color:#a6e22e>out</span>)
+		<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>err</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+			<span style=color:#a6e22e>handleError</span>(<span style=color:#a6e22e>fmt</span>.<span style=color:#a6e22e>Sprintf</span>(<span style=color:#e6db74>&#34;Could not decode object: %v&#34;</span>, <span style=color:#a6e22e>err</span>))
+		}
+        <span style=color:#75715e>// 进入inject方法逻辑判断
+</span><span style=color:#75715e></span>		<span style=color:#a6e22e>reviewResponse</span> = <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>inject</span>(<span style=color:#a6e22e>ar</span>, <span style=color:#a6e22e>path</span>)
+	}
+
+	<span style=color:#a6e22e>response</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>kube</span>.<span style=color:#a6e22e>AdmissionReview</span>{}
+	<span style=color:#a6e22e>response</span>.<span style=color:#a6e22e>Response</span> = <span style=color:#a6e22e>reviewResponse</span>
+	<span style=color:#66d9ef>var</span> <span style=color:#a6e22e>responseKube</span> <span style=color:#a6e22e>runtime</span>.<span style=color:#a6e22e>Object</span>
+	<span style=color:#66d9ef>var</span> <span style=color:#a6e22e>apiVersion</span> <span style=color:#66d9ef>string</span>
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>ar</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+		<span style=color:#a6e22e>apiVersion</span> = <span style=color:#a6e22e>ar</span>.<span style=color:#a6e22e>APIVersion</span>
+		<span style=color:#a6e22e>response</span>.<span style=color:#a6e22e>TypeMeta</span> = <span style=color:#a6e22e>ar</span>.<span style=color:#a6e22e>TypeMeta</span>
+		<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>response</span>.<span style=color:#a6e22e>Response</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+			<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>ar</span>.<span style=color:#a6e22e>Request</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+				<span style=color:#a6e22e>response</span>.<span style=color:#a6e22e>Response</span>.<span style=color:#a6e22e>UID</span> = <span style=color:#a6e22e>ar</span>.<span style=color:#a6e22e>Request</span>.<span style=color:#a6e22e>UID</span>
+			}
+		}
+	}
+	<span style=color:#a6e22e>responseKube</span> = <span style=color:#a6e22e>kube</span>.<span style=color:#a6e22e>AdmissionReviewAdapterToKube</span>(<span style=color:#f92672>&amp;</span><span style=color:#a6e22e>response</span>, <span style=color:#a6e22e>apiVersion</span>)
+	<span style=color:#a6e22e>resp</span>, <span style=color:#a6e22e>err</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>json</span>.<span style=color:#a6e22e>Marshal</span>(<span style=color:#a6e22e>responseKube</span>)
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>err</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+		<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Errorf</span>(<span style=color:#e6db74>&#34;Could not encode response: %v&#34;</span>, <span style=color:#a6e22e>err</span>)
+		<span style=color:#a6e22e>http</span>.<span style=color:#a6e22e>Error</span>(<span style=color:#a6e22e>w</span>, <span style=color:#a6e22e>fmt</span>.<span style=color:#a6e22e>Sprintf</span>(<span style=color:#e6db74>&#34;could not encode response: %v&#34;</span>, <span style=color:#a6e22e>err</span>), <span style=color:#a6e22e>http</span>.<span style=color:#a6e22e>StatusInternalServerError</span>)
+	}
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>_</span>, <span style=color:#a6e22e>err</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>w</span>.<span style=color:#a6e22e>Write</span>(<span style=color:#a6e22e>resp</span>); <span style=color:#a6e22e>err</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+		<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Errorf</span>(<span style=color:#e6db74>&#34;Could not write response: %v&#34;</span>, <span style=color:#a6e22e>err</span>)
+		<span style=color:#a6e22e>http</span>.<span style=color:#a6e22e>Error</span>(<span style=color:#a6e22e>w</span>, <span style=color:#a6e22e>fmt</span>.<span style=color:#a6e22e>Sprintf</span>(<span style=color:#e6db74>&#34;could not write response: %v&#34;</span>, <span style=color:#a6e22e>err</span>), <span style=color:#a6e22e>http</span>.<span style=color:#a6e22e>StatusInternalServerError</span>)
+	}
+}
+
+</code></pre></div><p><img src=https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220906155318.png alt=serveInject方法></p><h3 id=inject方法>inject方法</h3><p>pkg/kube/inject/webhook.go 大概在748-823行</p><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-go data-lang=go><span style=color:#66d9ef>func</span> (<span style=color:#a6e22e>wh</span> <span style=color:#f92672>*</span><span style=color:#a6e22e>Webhook</span>) <span style=color:#a6e22e>inject</span>(<span style=color:#a6e22e>ar</span> <span style=color:#f92672>*</span><span style=color:#a6e22e>kube</span>.<span style=color:#a6e22e>AdmissionReview</span>, <span style=color:#a6e22e>path</span> <span style=color:#66d9ef>string</span>) <span style=color:#f92672>*</span><span style=color:#a6e22e>kube</span>.<span style=color:#a6e22e>AdmissionResponse</span> {
+	<span style=color:#a6e22e>req</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>ar</span>.<span style=color:#a6e22e>Request</span>
+	<span style=color:#66d9ef>var</span> <span style=color:#a6e22e>pod</span> <span style=color:#a6e22e>corev1</span>.<span style=color:#a6e22e>Pod</span>
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>err</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>json</span>.<span style=color:#a6e22e>Unmarshal</span>(<span style=color:#a6e22e>req</span>.<span style=color:#a6e22e>Object</span>.<span style=color:#a6e22e>Raw</span>, <span style=color:#f92672>&amp;</span><span style=color:#a6e22e>pod</span>); <span style=color:#a6e22e>err</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+		<span style=color:#a6e22e>handleError</span>(<span style=color:#a6e22e>fmt</span>.<span style=color:#a6e22e>Sprintf</span>(<span style=color:#e6db74>&#34;Could not unmarshal raw object: %v %s&#34;</span>, <span style=color:#a6e22e>err</span>,
+			string(<span style=color:#a6e22e>req</span>.<span style=color:#a6e22e>Object</span>.<span style=color:#a6e22e>Raw</span>)))
+		<span style=color:#66d9ef>return</span> <span style=color:#a6e22e>toAdmissionResponse</span>(<span style=color:#a6e22e>err</span>)
+	}
+	<span style=color:#75715e>// Managed fields is sometimes extremely large, leading to excessive CPU time on patch generation
+</span><span style=color:#75715e></span>	<span style=color:#75715e>// It does not impact the injection output at all, so we can just remove it.
+</span><span style=color:#75715e></span>	<span style=color:#a6e22e>pod</span>.<span style=color:#a6e22e>ManagedFields</span> = <span style=color:#66d9ef>nil</span>
+
+	<span style=color:#75715e>// Deal with potential empty fields, e.g., when the pod is created by a deployment
+</span><span style=color:#75715e></span>	<span style=color:#a6e22e>podName</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>potentialPodName</span>(<span style=color:#a6e22e>pod</span>.<span style=color:#a6e22e>ObjectMeta</span>)
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>pod</span>.<span style=color:#a6e22e>ObjectMeta</span>.<span style=color:#a6e22e>Namespace</span> <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;&#34;</span> {
+		<span style=color:#a6e22e>pod</span>.<span style=color:#a6e22e>ObjectMeta</span>.<span style=color:#a6e22e>Namespace</span> = <span style=color:#a6e22e>req</span>.<span style=color:#a6e22e>Namespace</span>
+	}
+	<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Infof</span>(<span style=color:#e6db74>&#34;Sidecar injection request for %v/%v&#34;</span>, <span style=color:#a6e22e>req</span>.<span style=color:#a6e22e>Namespace</span>, <span style=color:#a6e22e>podName</span>)
+	<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Debugf</span>(<span style=color:#e6db74>&#34;Object: %v&#34;</span>, string(<span style=color:#a6e22e>req</span>.<span style=color:#a6e22e>Object</span>.<span style=color:#a6e22e>Raw</span>))
+	<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Debugf</span>(<span style=color:#e6db74>&#34;OldObject: %v&#34;</span>, string(<span style=color:#a6e22e>req</span>.<span style=color:#a6e22e>OldObject</span>.<span style=color:#a6e22e>Raw</span>))
+
+	<span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>mu</span>.<span style=color:#a6e22e>RLock</span>()
+	<span style=color:#75715e>// Sicader注入判断逻辑
+</span><span style=color:#75715e></span>	<span style=color:#66d9ef>if</span> !<span style=color:#a6e22e>injectRequired</span>(<span style=color:#a6e22e>IgnoredNamespaces</span>.<span style=color:#a6e22e>UnsortedList</span>(), <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>Config</span>, <span style=color:#f92672>&amp;</span><span style=color:#a6e22e>pod</span>.<span style=color:#a6e22e>Spec</span>, <span style=color:#a6e22e>pod</span>.<span style=color:#a6e22e>ObjectMeta</span>) {
+		<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Infof</span>(<span style=color:#e6db74>&#34;Skipping %s/%s due to policy check&#34;</span>, <span style=color:#a6e22e>pod</span>.<span style=color:#a6e22e>ObjectMeta</span>.<span style=color:#a6e22e>Namespace</span>, <span style=color:#a6e22e>podName</span>)
+		<span style=color:#a6e22e>totalSkippedInjections</span>.<span style=color:#a6e22e>Increment</span>()
+		<span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>mu</span>.<span style=color:#a6e22e>RUnlock</span>()
+		<span style=color:#66d9ef>return</span> <span style=color:#f92672>&amp;</span><span style=color:#a6e22e>kube</span>.<span style=color:#a6e22e>AdmissionResponse</span>{
+			<span style=color:#a6e22e>Allowed</span>: <span style=color:#66d9ef>true</span>,
+		}
+	}
+
+	<span style=color:#a6e22e>proxyConfig</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>mesh</span>.<span style=color:#a6e22e>DefaultProxyConfig</span>()
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>env</span>.<span style=color:#a6e22e>PushContext</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> <span style=color:#f92672>&amp;&amp;</span> <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>env</span>.<span style=color:#a6e22e>PushContext</span>.<span style=color:#a6e22e>ProxyConfigs</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+		<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>generatedProxyConfig</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>env</span>.<span style=color:#a6e22e>PushContext</span>.<span style=color:#a6e22e>ProxyConfigs</span>.<span style=color:#a6e22e>EffectiveProxyConfig</span>(
+			<span style=color:#f92672>&amp;</span><span style=color:#a6e22e>model</span>.<span style=color:#a6e22e>NodeMetadata</span>{
+				<span style=color:#a6e22e>Namespace</span>:   <span style=color:#a6e22e>pod</span>.<span style=color:#a6e22e>Namespace</span>,
+				<span style=color:#a6e22e>Labels</span>:      <span style=color:#a6e22e>pod</span>.<span style=color:#a6e22e>Labels</span>,
+				<span style=color:#a6e22e>Annotations</span>: <span style=color:#a6e22e>pod</span>.<span style=color:#a6e22e>Annotations</span>,
+			}, <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>meshConfig</span>); <span style=color:#a6e22e>generatedProxyConfig</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+			<span style=color:#a6e22e>proxyConfig</span> = <span style=color:#f92672>*</span><span style=color:#a6e22e>generatedProxyConfig</span>
+		}
+	}
+	<span style=color:#a6e22e>deploy</span>, <span style=color:#a6e22e>typeMeta</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>kube</span>.<span style=color:#a6e22e>GetDeployMetaFromPod</span>(<span style=color:#f92672>&amp;</span><span style=color:#a6e22e>pod</span>)
+	<span style=color:#a6e22e>params</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>InjectionParameters</span>{
+		<span style=color:#a6e22e>pod</span>:                 <span style=color:#f92672>&amp;</span><span style=color:#a6e22e>pod</span>,
+		<span style=color:#a6e22e>deployMeta</span>:          <span style=color:#a6e22e>deploy</span>,
+		<span style=color:#a6e22e>typeMeta</span>:            <span style=color:#a6e22e>typeMeta</span>,
+		<span style=color:#a6e22e>templates</span>:           <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>Config</span>.<span style=color:#a6e22e>Templates</span>,
+		<span style=color:#a6e22e>defaultTemplate</span>:     <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>Config</span>.<span style=color:#a6e22e>DefaultTemplates</span>,
+		<span style=color:#a6e22e>aliases</span>:             <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>Config</span>.<span style=color:#a6e22e>Aliases</span>,
+		<span style=color:#a6e22e>meshConfig</span>:          <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>meshConfig</span>,
+		<span style=color:#a6e22e>proxyConfig</span>:         <span style=color:#f92672>&amp;</span><span style=color:#a6e22e>proxyConfig</span>,
+		<span style=color:#a6e22e>valuesConfig</span>:        <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>valuesConfig</span>,
+		<span style=color:#a6e22e>revision</span>:            <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>revision</span>,
+		<span style=color:#a6e22e>injectedAnnotations</span>: <span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>Config</span>.<span style=color:#a6e22e>InjectedAnnotations</span>,
+		<span style=color:#a6e22e>proxyEnvs</span>:           <span style=color:#a6e22e>parseInjectEnvs</span>(<span style=color:#a6e22e>path</span>),
+	}
+	<span style=color:#a6e22e>wh</span>.<span style=color:#a6e22e>mu</span>.<span style=color:#a6e22e>RUnlock</span>()
+
+	<span style=color:#a6e22e>patchBytes</span>, <span style=color:#a6e22e>err</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>injectPod</span>(<span style=color:#a6e22e>params</span>)
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>err</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+		<span style=color:#a6e22e>handleError</span>(<span style=color:#a6e22e>fmt</span>.<span style=color:#a6e22e>Sprintf</span>(<span style=color:#e6db74>&#34;Pod injection failed: %v&#34;</span>, <span style=color:#a6e22e>err</span>))
+		<span style=color:#66d9ef>return</span> <span style=color:#a6e22e>toAdmissionResponse</span>(<span style=color:#a6e22e>err</span>)
+	}
+
+	<span style=color:#a6e22e>reviewResponse</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>kube</span>.<span style=color:#a6e22e>AdmissionResponse</span>{
+		<span style=color:#a6e22e>Allowed</span>: <span style=color:#66d9ef>true</span>,
+		<span style=color:#a6e22e>Patch</span>:   <span style=color:#a6e22e>patchBytes</span>,
+		<span style=color:#a6e22e>PatchType</span>: <span style=color:#66d9ef>func</span>() <span style=color:#f92672>*</span><span style=color:#66d9ef>string</span> {
+			<span style=color:#a6e22e>pt</span> <span style=color:#f92672>:=</span> <span style=color:#e6db74>&#34;JSONPatch&#34;</span>
+			<span style=color:#66d9ef>return</span> <span style=color:#f92672>&amp;</span><span style=color:#a6e22e>pt</span>
+		}(),
+	}
+	<span style=color:#a6e22e>totalSuccessfulInjections</span>.<span style=color:#a6e22e>Increment</span>()
+	<span style=color:#66d9ef>return</span> <span style=color:#f92672>&amp;</span><span style=color:#a6e22e>reviewResponse</span>
+}
+</code></pre></div><p><img src=https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220906160555.png alt=inject方法></p><p><img src=https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220906153917.png alt=忽略名称空间定义></p><h3 id=injectrequired方法>injectRequired方法</h3><p>pkg/kube/inject/inject.go 大概在180-290行</p><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-go data-lang=go>
+<span style=color:#66d9ef>func</span> <span style=color:#a6e22e>injectRequired</span>(<span style=color:#a6e22e>ignored</span> []<span style=color:#66d9ef>string</span>, <span style=color:#a6e22e>config</span> <span style=color:#f92672>*</span><span style=color:#a6e22e>Config</span>, <span style=color:#a6e22e>podSpec</span> <span style=color:#f92672>*</span><span style=color:#a6e22e>corev1</span>.<span style=color:#a6e22e>PodSpec</span>, <span style=color:#a6e22e>metadata</span> <span style=color:#a6e22e>metav1</span>.<span style=color:#a6e22e>ObjectMeta</span>) <span style=color:#66d9ef>bool</span> { <span style=color:#75715e>// nolint: lll
+</span><span style=color:#75715e></span>	<span style=color:#75715e>// Skip injection when host networking is enabled. The problem is
+</span><span style=color:#75715e></span>	<span style=color:#75715e>// that the iptables changes are assumed to be within the pod when,
+</span><span style=color:#75715e></span>	<span style=color:#75715e>// in fact, they are changing the routing at the host level. This
+</span><span style=color:#75715e></span>	<span style=color:#75715e>// often results in routing failures within a node which can
+</span><span style=color:#75715e></span>	<span style=color:#75715e>// affect the network provider within the cluster causing
+</span><span style=color:#75715e></span>	<span style=color:#75715e>// additional pod failures.
+</span><span style=color:#75715e></span>
+    <span style=color:#75715e>// 主机网络模式不注入sicader
+</span><span style=color:#75715e></span>	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>podSpec</span>.<span style=color:#a6e22e>HostNetwork</span> {
+		<span style=color:#66d9ef>return</span> <span style=color:#66d9ef>false</span>
+	}
+
+	<span style=color:#75715e>// skip special kubernetes system namespaces
+</span><span style=color:#75715e></span>    <span style=color:#75715e>// kube-system、kube-public、kube-node-lease、local-path-storage四个名称空间不被注入sicader
+</span><span style=color:#75715e></span>	<span style=color:#66d9ef>for</span> <span style=color:#a6e22e>_</span>, <span style=color:#a6e22e>namespace</span> <span style=color:#f92672>:=</span> <span style=color:#66d9ef>range</span> <span style=color:#a6e22e>ignored</span> {
+		<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>metadata</span>.<span style=color:#a6e22e>Namespace</span> <span style=color:#f92672>==</span> <span style=color:#a6e22e>namespace</span> {
+			<span style=color:#66d9ef>return</span> <span style=color:#66d9ef>false</span>
+		}
+	}
+
+	<span style=color:#a6e22e>annos</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>metadata</span>.<span style=color:#a6e22e>GetAnnotations</span>()
+
+	<span style=color:#66d9ef>var</span> <span style=color:#a6e22e>useDefault</span> <span style=color:#66d9ef>bool</span>
+	<span style=color:#66d9ef>var</span> <span style=color:#a6e22e>inject</span> <span style=color:#66d9ef>bool</span>
+    <span style=color:#75715e>// annotation 是否开启注入 `sidecar.istio.io/inject: &#34;true&#34;`
+</span><span style=color:#75715e></span>	<span style=color:#a6e22e>objectSelector</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>annos</span>[<span style=color:#a6e22e>annotation</span>.<span style=color:#a6e22e>SidecarInject</span>.<span style=color:#a6e22e>Name</span>]
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>lbl</span>, <span style=color:#a6e22e>labelPresent</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>metadata</span>.<span style=color:#a6e22e>GetLabels</span>()[<span style=color:#a6e22e>annotation</span>.<span style=color:#a6e22e>SidecarInject</span>.<span style=color:#a6e22e>Name</span>]; <span style=color:#a6e22e>labelPresent</span> {
+		<span style=color:#75715e>// The label is the new API; if both are present we prefer the label
+</span><span style=color:#75715e></span>		<span style=color:#a6e22e>objectSelector</span> = <span style=color:#a6e22e>lbl</span>
+	}
+	<span style=color:#66d9ef>switch</span> <span style=color:#a6e22e>strings</span>.<span style=color:#a6e22e>ToLower</span>(<span style=color:#a6e22e>objectSelector</span>) {
+	<span style=color:#75715e>// http://yaml.org/type/bool.html
+</span><span style=color:#75715e></span>	<span style=color:#66d9ef>case</span> <span style=color:#e6db74>&#34;y&#34;</span>, <span style=color:#e6db74>&#34;yes&#34;</span>, <span style=color:#e6db74>&#34;true&#34;</span>, <span style=color:#e6db74>&#34;on&#34;</span>:
+		<span style=color:#a6e22e>inject</span> = <span style=color:#66d9ef>true</span>
+	<span style=color:#66d9ef>case</span> <span style=color:#e6db74>&#34;&#34;</span>:
+		<span style=color:#a6e22e>useDefault</span> = <span style=color:#66d9ef>true</span>
+	}
+
+	<span style=color:#75715e>// If an annotation is not explicitly given, check the LabelSelectors, starting with NeverInject
+</span><span style=color:#75715e></span>    <span style=color:#75715e>// 判断 configmap `istio-sidecar-injector` NeverInject 匹配标签选择器
+</span><span style=color:#75715e></span>	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>useDefault</span> {
+		<span style=color:#66d9ef>for</span> <span style=color:#a6e22e>_</span>, <span style=color:#a6e22e>neverSelector</span> <span style=color:#f92672>:=</span> <span style=color:#66d9ef>range</span> <span style=color:#a6e22e>config</span>.<span style=color:#a6e22e>NeverInjectSelector</span> {
+			<span style=color:#a6e22e>selector</span>, <span style=color:#a6e22e>err</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>metav1</span>.<span style=color:#a6e22e>LabelSelectorAsSelector</span>(<span style=color:#f92672>&amp;</span><span style=color:#a6e22e>neverSelector</span>)
+			<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>err</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+				<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Warnf</span>(<span style=color:#e6db74>&#34;Invalid selector for NeverInjectSelector: %v (%v)&#34;</span>, <span style=color:#a6e22e>neverSelector</span>, <span style=color:#a6e22e>err</span>)
+			} <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> !<span style=color:#a6e22e>selector</span>.<span style=color:#a6e22e>Empty</span>() <span style=color:#f92672>&amp;&amp;</span> <span style=color:#a6e22e>selector</span>.<span style=color:#a6e22e>Matches</span>(<span style=color:#a6e22e>labels</span>.<span style=color:#a6e22e>Set</span>(<span style=color:#a6e22e>metadata</span>.<span style=color:#a6e22e>Labels</span>)) {
+				<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Debugf</span>(<span style=color:#e6db74>&#34;Explicitly disabling injection for pod %s/%s due to pod labels matching NeverInjectSelector config map entry.&#34;</span>,
+					<span style=color:#a6e22e>metadata</span>.<span style=color:#a6e22e>Namespace</span>, <span style=color:#a6e22e>potentialPodName</span>(<span style=color:#a6e22e>metadata</span>))
+				<span style=color:#a6e22e>inject</span> = <span style=color:#66d9ef>false</span>
+				<span style=color:#a6e22e>useDefault</span> = <span style=color:#66d9ef>false</span>
+				<span style=color:#66d9ef>break</span>
+			}
+		}
+	}
+
+	<span style=color:#75715e>// If there&#39;s no annotation nor a NeverInjectSelector, check the AlwaysInject one
+</span><span style=color:#75715e></span>    <span style=color:#75715e>//  判断 configmap `istio-sidecar-injector` AlwaysInject 匹配标签选择器
+</span><span style=color:#75715e></span>	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>useDefault</span> {
+		<span style=color:#66d9ef>for</span> <span style=color:#a6e22e>_</span>, <span style=color:#a6e22e>alwaysSelector</span> <span style=color:#f92672>:=</span> <span style=color:#66d9ef>range</span> <span style=color:#a6e22e>config</span>.<span style=color:#a6e22e>AlwaysInjectSelector</span> {
+			<span style=color:#a6e22e>selector</span>, <span style=color:#a6e22e>err</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>metav1</span>.<span style=color:#a6e22e>LabelSelectorAsSelector</span>(<span style=color:#f92672>&amp;</span><span style=color:#a6e22e>alwaysSelector</span>)
+			<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>err</span> <span style=color:#f92672>!=</span> <span style=color:#66d9ef>nil</span> {
+				<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Warnf</span>(<span style=color:#e6db74>&#34;Invalid selector for AlwaysInjectSelector: %v (%v)&#34;</span>, <span style=color:#a6e22e>alwaysSelector</span>, <span style=color:#a6e22e>err</span>)
+			} <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>if</span> !<span style=color:#a6e22e>selector</span>.<span style=color:#a6e22e>Empty</span>() <span style=color:#f92672>&amp;&amp;</span> <span style=color:#a6e22e>selector</span>.<span style=color:#a6e22e>Matches</span>(<span style=color:#a6e22e>labels</span>.<span style=color:#a6e22e>Set</span>(<span style=color:#a6e22e>metadata</span>.<span style=color:#a6e22e>Labels</span>)) {
+				<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Debugf</span>(<span style=color:#e6db74>&#34;Explicitly enabling injection for pod %s/%s due to pod labels matching AlwaysInjectSelector config map entry.&#34;</span>,
+					<span style=color:#a6e22e>metadata</span>.<span style=color:#a6e22e>Namespace</span>, <span style=color:#a6e22e>potentialPodName</span>(<span style=color:#a6e22e>metadata</span>))
+				<span style=color:#a6e22e>inject</span> = <span style=color:#66d9ef>true</span>
+				<span style=color:#a6e22e>useDefault</span> = <span style=color:#66d9ef>false</span>
+				<span style=color:#66d9ef>break</span>
+			}
+		}
+	}
+
+	<span style=color:#66d9ef>var</span> <span style=color:#a6e22e>required</span> <span style=color:#66d9ef>bool</span>
+    <span style=color:#75715e>//   判断 configmap `istio-sidecar-injector`  默认策略policy
+</span><span style=color:#75715e></span>	<span style=color:#66d9ef>switch</span> <span style=color:#a6e22e>config</span>.<span style=color:#a6e22e>Policy</span> {
+	<span style=color:#66d9ef>default</span>: <span style=color:#75715e>// InjectionPolicyOff
+</span><span style=color:#75715e></span>		<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Errorf</span>(<span style=color:#e6db74>&#34;Illegal value for autoInject:%s, must be one of [%s,%s]. Auto injection disabled!&#34;</span>,
+			<span style=color:#a6e22e>config</span>.<span style=color:#a6e22e>Policy</span>, <span style=color:#a6e22e>InjectionPolicyDisabled</span>, <span style=color:#a6e22e>InjectionPolicyEnabled</span>)
+		<span style=color:#a6e22e>required</span> = <span style=color:#66d9ef>false</span>
+	<span style=color:#66d9ef>case</span> <span style=color:#a6e22e>InjectionPolicyDisabled</span>:
+		<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>useDefault</span> {
+			<span style=color:#a6e22e>required</span> = <span style=color:#66d9ef>false</span>
+		} <span style=color:#66d9ef>else</span> {
+			<span style=color:#a6e22e>required</span> = <span style=color:#a6e22e>inject</span>
+		}
+	<span style=color:#66d9ef>case</span> <span style=color:#a6e22e>InjectionPolicyEnabled</span>:
+		<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>useDefault</span> {
+			<span style=color:#a6e22e>required</span> = <span style=color:#66d9ef>true</span>
+		} <span style=color:#66d9ef>else</span> {
+			<span style=color:#a6e22e>required</span> = <span style=color:#a6e22e>inject</span>
+		}
+	}
+
+	<span style=color:#66d9ef>if</span> <span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>DebugEnabled</span>() {
+		<span style=color:#75715e>// Build a log message for the annotations.
+</span><span style=color:#75715e></span>		<span style=color:#a6e22e>annotationStr</span> <span style=color:#f92672>:=</span> <span style=color:#e6db74>&#34;&#34;</span>
+		<span style=color:#66d9ef>for</span> <span style=color:#a6e22e>name</span> <span style=color:#f92672>:=</span> <span style=color:#66d9ef>range</span> <span style=color:#a6e22e>AnnotationValidation</span> {
+			<span style=color:#a6e22e>value</span>, <span style=color:#a6e22e>ok</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>annos</span>[<span style=color:#a6e22e>name</span>]
+			<span style=color:#66d9ef>if</span> !<span style=color:#a6e22e>ok</span> {
+				<span style=color:#a6e22e>value</span> = <span style=color:#e6db74>&#34;(unset)&#34;</span>
+			}
+			<span style=color:#a6e22e>annotationStr</span> <span style=color:#f92672>+=</span> <span style=color:#a6e22e>fmt</span>.<span style=color:#a6e22e>Sprintf</span>(<span style=color:#e6db74>&#34;%s:%s &#34;</span>, <span style=color:#a6e22e>name</span>, <span style=color:#a6e22e>value</span>)
+		}
+
+		<span style=color:#a6e22e>log</span>.<span style=color:#a6e22e>Debugf</span>(<span style=color:#e6db74>&#34;Sidecar injection policy for %v/%v: namespacePolicy:%v useDefault:%v inject:%v required:%v %s&#34;</span>,
+			<span style=color:#a6e22e>metadata</span>.<span style=color:#a6e22e>Namespace</span>,
+			<span style=color:#a6e22e>potentialPodName</span>(<span style=color:#a6e22e>metadata</span>),
+			<span style=color:#a6e22e>config</span>.<span style=color:#a6e22e>Policy</span>,
+			<span style=color:#a6e22e>useDefault</span>,
+			<span style=color:#a6e22e>inject</span>,
+			<span style=color:#a6e22e>required</span>,
+			<span style=color:#a6e22e>annotationStr</span>)
+	}
+
+	<span style=color:#66d9ef>return</span> <span style=color:#a6e22e>required</span>
+}
+</code></pre></div><p><img src=https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220906160629.png alt=injectRequired方法></p><ul class=pa0><li class="list di"><a href=/tags/istio class="link f5 grow no-underline br-pill ba ph3 pv2 mb2 dib black sans-serif">istio</a></li></ul><div class="mt6 instapaper_ignoref"></div></div><aside class="w-30-l mt6-l"><div class="bg-light-gray pa3 nested-list-reset nested-copy-line-height nested-links"><p class="f5 b mb3">What's in this posts</p><nav id=TableOfContents><ul><li><ul><li></li><li><a href=#newwehook方法>NewWehook方法</a></li><li><a href=#serveinject方法>serveInject方法</a></li><li><a href=#inject方法>inject方法</a></li><li><a href=#injectrequired方法>injectRequired方法</a></li></ul></li></ul></nav></div></aside></article></main><footer class="bg-black bottom-0 w-100 pa3"role=contentinfo><div class="flex justify-between"><a class="f4 fw4 hover-white no-underline white-70 dn dib-ns pv2 ph3"href=https://sreionet.github.io/>&copy; 云原生技术圈 2022</a><div><div class=ananke-socials></div></div></div></footer></body></html>

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>kubernetes on 云原生技术圈</title><link>https://sreionet.github.io/categories/kubernetes/</link><description>Recent content in kubernetes on 云原生技术圈</description><generator>Hugo -- gohugo.io</generator><language>zh-CN</language><lastBuildDate>Fri, 29 Jul 2022 15:54:52 +0800</lastBuildDate><atom:link href="https://sreionet.github.io/categories/kubernetes/index.xml" rel="self" type="application/rss+xml"/><item><title>【转载】通过Gateway API不断演变的Kubernetes网络</title><link>https://sreionet.github.io/posts/gateway/gateway-api/</link><pubDate>Fri, 29 Jul 2022 15:54:52 +0800</pubDate><guid>https://sreionet.github.io/posts/gateway/gateway-api/</guid><description>Ingress 资源是 Kubernetes 众多成功故事之一。它创建了一个不同的 Ingress 控制器生态系统，这些控制器以标准化和一致的方式在成千上万的集群中使用。这种标准化帮助用户采用 Kubernetes。然而，在 Ingress 创建 5 年后，有迹象表明，分裂为不同但惊人相似的 CRD 和超载的注释。使 Ingress 普及的可移植性同样也限制了它的未来。
-在 2019 年圣地亚哥 Kubecon 大会上，一群热情的贡献者聚集在一起讨论 Ingress 的演变。讨论蔓延到了街对面的酒店大厅，结果就是后来被称为 Gateway API 的东西。这一讨论是基于以下几个关键假设：
-作为路由匹配、流量管理和服务暴露基础的 API 标准已经商品化，作为自定义 API 对其实现者和用户几乎没有提供什么价值
-可以通过共同的核心 API 资源来表示 L4/L7 路由和流量管理
-以一种不牺牲核心 API 的用户体验的方式，为更复杂的功能提供可扩展性是可能的
-引入 Gateway API 这就引出了允许 Gateway API 在 Ingress 基础上改进的设计原则：
-表达能力——除了 HTTP 主机/路径匹配和 TLS 之外，Gateway API 还可以表达 HTTP 头操作、流量加权和镜像、TCP/UDP 路由以及其他只能在 Ingress 中通过自定义注释才能实现的功能。
-面向角色的设计——API 资源模型反映了在路由和 Kubernetes 服务网络中常见的职责分离。</description></item></channel></rss>

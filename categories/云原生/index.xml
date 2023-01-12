@@ -1,4 +1,87 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>云原生 on 云原生技术圈</title><link>https://sreionet.github.io/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/</link><description>Recent content in 云原生 on 云原生技术圈</description><generator>Hugo -- gohugo.io</generator><language>zh-CN</language><lastBuildDate>Tue, 06 Sep 2022 17:06:41 +0800</lastBuildDate><atom:link href="https://sreionet.github.io/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/index.xml" rel="self" type="application/rss+xml"/><item><title>深入了解Istio Sicader自动注入</title><link>https://sreionet.github.io/posts/istio/istio%E8%87%AA%E5%8A%A8%E6%B3%A8%E5%85%A5%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/</link><pubDate>Tue, 06 Sep 2022 17:06:41 +0800</pubDate><guid>https://sreionet.github.io/posts/istio/istio%E8%87%AA%E5%8A%A8%E6%B3%A8%E5%85%A5%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/</guid><description>Sidecar 自动注入机制是将 sidecar 代理自动添加到用户创建的 pod。 它使用 MutatingWebhook 机制在 pod 创建的时候将 sidecar 的容器和卷添加到每个 pod 的模版里。 用户可以通过 webhooks namespaceSelector 机制来限定需要启动自动注入的范围，也可以通过注解的方式针对每个 pod 来单独启用和禁用自动注入功能。
-Sidecar 是否会被自动注入取决于下面 3 条配置和 2 条安全规则：
-配置: webhooks namespaceSelector 默认策略 policy pod 级别的覆盖注解 安全规则: sidecar 默认不能被注入到 kube-system 和 kube-public 这两个 namespace sidecar 不能被注入到使用 host network 网络的 pod 里 下面的表格展示了基于上述三个配置条件的最终注入状态。上述的安全规则不会被覆盖。
-namespaceSelector 匹配 默认策略 sidecar.istio.io/inject 注解 Sidecar 是否注入 是 enabled true (default) 是 是 enabled false 否 是 disabled true 是 是 disabled false (default) 否 否 enabled true (default) 否 否 enabled false 否 否 disabled true 否 否 disabled false (default) 否 以下内容基于Istio 1.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:sy="http://purl.org/rss/1.0/modules/syndication/" xmlns:media="http://search.yahoo.com/mrss/"><channel><title>云原生 on 云原生技术圈</title><link>http://example.org/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/</link><description>Recent content in 云原生 on 云原生技术圈</description><generator>Hugo -- gohugo.io</generator><language>zh</language><managingEditor>kbsonlong@gmail.com (kbsonlong)</managingEditor><webMaster>kbsonlong@gmail.com (kbsonlong)</webMaster><copyright>©2023, All Rights Reserved</copyright><lastBuildDate>Fri, 16 Sep 2022 17:25:59 +0800</lastBuildDate><atom:link href="http://example.org/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/index.xml" rel="self" type="application/rss+xml"/><item><title>深入Istio系列-Pilot agent</title><link>http://example.org/posts/istio/3d18d6/</link><pubDate>Fri, 16 Sep 2022 17:25:59 +0800</pubDate><author>kbsonlong@gmail.com (kbsonlong)</author><atom:modified>Fri, 16 Sep 2022 17:25:59 +0800</atom:modified><guid>http://example.org/posts/istio/3d18d6/</guid><description>&lt;h3 id="查看监听端口和进程">查看监听端口和进程&lt;/h3>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre class="chroma">&lt;code class="language-bash" data-lang="bash">istio-proxy@istio-ingressgateway-799bbc9474-hf7kv:/$ ss -ntlp
+State Recv-Q Send-Q Local Address:Port Peer Address:Port Process
+LISTEN &lt;span class="m">0&lt;/span> &lt;span class="m">128&lt;/span> 127.0.0.1:15000 0.0.0.0:* users:&lt;span class="o">((&lt;/span>&lt;span class="s2">&amp;#34;envoy&amp;#34;&lt;/span>,pid&lt;span class="o">=&lt;/span>16,fd&lt;span class="o">=&lt;/span>18&lt;span class="o">))&lt;/span>
+LISTEN &lt;span class="m">0&lt;/span> &lt;span class="m">128&lt;/span> 127.0.0.1:15004 0.0.0.0:* users:&lt;span class="o">((&lt;/span>&lt;span class="s2">&amp;#34;pilot-agent&amp;#34;&lt;/span>,pid&lt;span class="o">=&lt;/span>1,fd&lt;span class="o">=&lt;/span>15&lt;span class="o">))&lt;/span>
+LISTEN &lt;span class="m">0&lt;/span> &lt;span class="m">128&lt;/span> 0.0.0.0:15021 0.0.0.0:* users:&lt;span class="o">((&lt;/span>&lt;span class="s2">&amp;#34;envoy&amp;#34;&lt;/span>,pid&lt;span class="o">=&lt;/span>16,fd&lt;span class="o">=&lt;/span>24&lt;span class="o">))&lt;/span>
+LISTEN &lt;span class="m">0&lt;/span> &lt;span class="m">128&lt;/span> 0.0.0.0:15021 0.0.0.0:* users:&lt;span class="o">((&lt;/span>&lt;span class="s2">&amp;#34;envoy&amp;#34;&lt;/span>,pid&lt;span class="o">=&lt;/span>16,fd&lt;span class="o">=&lt;/span>23&lt;span class="o">))&lt;/span>
+LISTEN &lt;span class="m">0&lt;/span> &lt;span class="m">128&lt;/span> 0.0.0.0:8080 0.0.0.0:* users:&lt;span class="o">((&lt;/span>&lt;span class="s2">&amp;#34;envoy&amp;#34;&lt;/span>,pid&lt;span class="o">=&lt;/span>16,fd&lt;span class="o">=&lt;/span>40&lt;span class="o">))&lt;/span>
+LISTEN &lt;span class="m">0&lt;/span> &lt;span class="m">128&lt;/span> 0.0.0.0:8080 0.0.0.0:* users:&lt;span class="o">((&lt;/span>&lt;span class="s2">&amp;#34;envoy&amp;#34;&lt;/span>,pid&lt;span class="o">=&lt;/span>16,fd&lt;span class="o">=&lt;/span>39&lt;span class="o">))&lt;/span>
+LISTEN &lt;span class="m">0&lt;/span> &lt;span class="m">128&lt;/span> 0.0.0.0:15090 0.0.0.0:* users:&lt;span class="o">((&lt;/span>&lt;span class="s2">&amp;#34;envoy&amp;#34;&lt;/span>,pid&lt;span class="o">=&lt;/span>16,fd&lt;span class="o">=&lt;/span>22&lt;span class="o">))&lt;/span>
+LISTEN &lt;span class="m">0&lt;/span> &lt;span class="m">128&lt;/span> 0.0.0.0:15090 0.0.0.0:* users:&lt;span class="o">((&lt;/span>&lt;span class="s2">&amp;#34;envoy&amp;#34;&lt;/span>,pid&lt;span class="o">=&lt;/span>16,fd&lt;span class="o">=&lt;/span>21&lt;span class="o">))&lt;/span>
+LISTEN &lt;span class="m">0&lt;/span> &lt;span class="m">128&lt;/span> *:15020 *:* users:&lt;span class="o">((&lt;/span>&lt;span class="s2">&amp;#34;pilot-agent&amp;#34;&lt;/span>,pid&lt;span class="o">=&lt;/span>1,fd&lt;span class="o">=&lt;/span>12&lt;span class="o">))&lt;/span>
+istio-proxy@istio-ingressgateway-799bbc9474-hf7kv:/$ ps -ef &lt;span class="p">|&lt;/span>grep pilot-agent
+istio-p+ &lt;span class="m">1&lt;/span> &lt;span class="m">0&lt;/span> &lt;span class="m">0&lt;/span> Sep14 ? 00:01:27 /usr/local/bin/pilot-agent proxy router --domain istio-system.svc.cluster.local --proxyLogLevel&lt;span class="o">=&lt;/span>warning --proxyComponentLogLevel&lt;span class="o">=&lt;/span>misc:error --log_output_level&lt;span class="o">=&lt;/span>default:info
+istio-p+ &lt;span class="m">74&lt;/span> &lt;span class="m">30&lt;/span> &lt;span class="m">0&lt;/span> 09:37 pts/0 00:00:00 grep --color&lt;span class="o">=&lt;/span>auto pilot-agent
+&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;figure>
+&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220916173915.png"/>
+&lt;/figure></description><dc:creator>kbsonlong</dc:creator><category>istio</category><category>pilot</category><category>云原生</category><category>Istio</category></item><item><title>Istio性能指标</title><link>http://example.org/posts/istio/6899d1/</link><pubDate>Tue, 13 Sep 2022 10:56:21 +0800</pubDate><author>kbsonlong@gmail.com (kbsonlong)</author><atom:modified>Tue, 13 Sep 2022 10:56:21 +0800</atom:modified><guid>http://example.org/posts/istio/6899d1/</guid><description>&lt;h1 id="istio-指标">Istio 指标&lt;/h1>
+&lt;h2 id="istio-自己的-metrics">Istio 自己的 Metrics&lt;/h2>
+&lt;h3 id="标准指标说明">标准指标说明&lt;/h3>
+&lt;blockquote>
+&lt;p>参考：https://istio.io/latest/docs/reference/config/metrics/&lt;/p>
+&lt;/blockquote>
+&lt;h4 id="metrics">Metrics&lt;/h4>
+&lt;p>对于 HTTP、HTTP/2 和 GRPC 流量，Istio 默认生成以下指标：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Request Count&lt;/strong> (&lt;code>istio_requests_total&lt;/code>): This is a &lt;code>COUNTER&lt;/code> incremented for every request handled by an Istio proxy.&lt;/li>
+&lt;li>&lt;strong>Request Duration&lt;/strong> (&lt;code>istio_request_duration_milliseconds&lt;/code>): This is a &lt;code>DISTRIBUTION&lt;/code> which measures the duration of requests.&lt;/li>
+&lt;li>&lt;strong>Request Size&lt;/strong> (&lt;code>istio_request_bytes&lt;/code>): This is a &lt;code>DISTRIBUTION&lt;/code> which measures HTTP request body sizes.&lt;/li>
+&lt;li>&lt;strong>Response Size&lt;/strong> (&lt;code>istio_response_bytes&lt;/code>): This is a &lt;code>DISTRIBUTION&lt;/code> which measures HTTP response body sizes.&lt;/li>
+&lt;li>&lt;strong>gRPC Request Message Count&lt;/strong> (&lt;code>istio_request_messages_total&lt;/code>): This is a &lt;code>COUNTER&lt;/code> incremented for every gRPC message sent from a client.&lt;/li>
+&lt;li>&lt;strong>gRPC Response Message Count&lt;/strong> (&lt;code>istio_response_messages_total&lt;/code>): This is a &lt;code>COUNTER&lt;/code> incremented for every gRPC message sent from a server.&lt;/li>
+&lt;/ul></description><dc:creator>kbsonlong</dc:creator><category>istio</category><category>转载</category><category>云原生</category></item><item><title>Envoy性能指标</title><link>http://example.org/posts/istio/0affe7/</link><pubDate>Tue, 13 Sep 2022 10:46:39 +0800</pubDate><author>kbsonlong@gmail.com (kbsonlong)</author><atom:modified>Tue, 13 Sep 2022 10:46:39 +0800</atom:modified><guid>http://example.org/posts/istio/0affe7/</guid><description>&lt;h1 id="envoy-指标">Envoy 指标&lt;/h1>
+&lt;h2 id="envoy-指标概述">Envoy 指标概述&lt;/h2>
+&lt;p>Envoy 的主要目标之一是使网络易于理解。 Envoy 会根据其配置方式产生大量统计信息。一般来说，统计数据(指标)分为三类：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Downstream&lt;/strong>：Downstream 指标与外来的连接/请求有关。它们由 &lt;code>listener&lt;/code>、&lt;code>HTTP connection manager(HCM)&lt;/code>、&lt;code>TCP proxy filter&lt;/code> 等产生。&lt;/li>
+&lt;li>&lt;strong>Upstream&lt;/strong>：Upstream 指标与外向的连接/请求有关。它们由 &lt;code>connection pool&lt;/code>、&lt;code>router filter&lt;/code>、&lt;code>tcp proxy filter&lt;/code>等产生。&lt;/li>
+&lt;li>&lt;strong>Server&lt;/strong>：&lt;code>Server&lt;/code> 指标信息描述 Envoy 服务器实例的运作情况。服务器正常运行时间或分配的内存量等统计信息。&lt;/li>
+&lt;/ul>
+&lt;p>在最简单场景下，单个 Envoy Proxy 通常涉及 &lt;code>Downstream&lt;/code> 和 &lt;code>Upstream&lt;/code> 统计数据。这两种指标反映了取该 &lt;code>网络节点&lt;/code> 的运行情况。来自整个网格的统计数据提供了每个&lt;code> 网络节点&lt;/code> 和整体网络健康状况的非常详细的汇总信息。Envoy 的文档对这些指标有一些简单的说明。&lt;/p></description><dc:creator>kbsonlong</dc:creator><category>istio</category><category>envoy</category><category>转载</category><category>云原生</category></item><item><title>Istio组件详解</title><link>http://example.org/posts/istio/6be15f/</link><pubDate>Mon, 12 Sep 2022 08:19:28 +0800</pubDate><author>kbsonlong@gmail.com (kbsonlong)</author><atom:modified>Mon, 12 Sep 2022 08:19:28 +0800</atom:modified><guid>http://example.org/posts/istio/6be15f/</guid><description>在前两篇博客中： Istio 中的 Sidecar 注入、透明流量劫持及流量路由过程详解 Sidecar 中的流量类型及 iptables 规则详解 我向你详细介绍了 Istio 数据平面中的流量，但数据平面并不能孤</description><dc:creator>kbsonlong</dc:creator><category>istio</category><category>sicader</category><category>转载</category><category>云原生</category></item><item><title>Sidecar 中的流量类型及 iptables 规则详解</title><link>http://example.org/posts/istio/61aaaf/</link><pubDate>Sun, 11 Sep 2022 14:56:39 +0800</pubDate><author>kbsonlong@gmail.com (kbsonlong)</author><atom:modified>Sun, 11 Sep 2022 14:56:39 +0800</atom:modified><guid>http://example.org/posts/istio/61aaaf/</guid><description>我在之前的一篇博客中讲解过 Istio 中 sidecar 的注入、使用 iptables 进行透明流量拦截及流量路由的详细过程，并以 Bookinfo 示例中的 productpage 服务访问 reviews 服务，和 reviews 服务访问 ratings 服务为例绘</description><dc:creator>kbsonlong</dc:creator><category>sicader</category><category>转载</category><category>云原生</category></item><item><title>Istio 中的 Sidecar 注入、透明流量劫持及流量路由过程详解</title><link>http://example.org/posts/istio/fe0ba1/</link><pubDate>Sun, 11 Sep 2022 14:26:02 +0800</pubDate><author>kbsonlong@gmail.com (kbsonlong)</author><atom:modified>Sun, 11 Sep 2022 14:26:02 +0800</atom:modified><guid>http://example.org/posts/istio/fe0ba1/</guid><description>本文最早是基于 Istio 1.11 撰写，之后随着 Istio 的版本陆续更新，最新更新时间为 2022 年 5 月 12 日，关于本文历史版本的更新说明请见文章最后。本文记录了详细的实践过</description><dc:creator>kbsonlong</dc:creator><category>istio</category><category>转载</category><category>云原生</category></item><item><title>深入Istio系列-Sidecar自动注入</title><link>http://example.org/posts/istio/dd0bd7/</link><pubDate>Sun, 11 Sep 2022 10:29:36 +0800</pubDate><author>kbsonlong@gmail.com (kbsonlong)</author><atom:modified>Sun, 11 Sep 2022 10:29:36 +0800</atom:modified><guid>http://example.org/posts/istio/dd0bd7/</guid><description>&lt;ul>
+&lt;li>
+&lt;p>Sidecar 自动注入机制是将 sidecar 代理自动添加到用户创建的 pod。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>它使用 MutatingWebhook 机制在 pod 创建的时候将 sidecar 的容器和卷添加到每个 pod 的模版里。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>用户可以通过 webhooks namespaceSelector 机制来限定需要启动自动注入的范围，也可以通过注解的方式针对每个 pod 来单独启用和禁用自动注入功能。&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>Sidecar 是否会被自动注入取决于下面 3 条配置和 2 条安全规则：&lt;/p></description><dc:creator>kbsonlong</dc:creator><category>istio</category><category>Sidecar</category><category>云原生</category><category>Istio</category></item><item><title>Istio部署实战</title><link>http://example.org/posts/istio/bf667a/</link><pubDate>Sun, 11 Sep 2022 10:27:29 +0800</pubDate><author>kbsonlong@gmail.com (kbsonlong)</author><atom:modified>Wed, 14 Sep 2022 14:25:25 +0800</atom:modified><guid>http://example.org/posts/istio/bf667a/</guid><description>&lt;h2 id="helm-安装">Helm 安装&lt;/h2>
+&lt;h3 id="安装基础资源">安装基础资源&lt;/h3>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre class="chroma">&lt;code class="language-bash" data-lang="bash">helm template istio-base manifests/charts/base &lt;span class="se">\
+&lt;/span>&lt;span class="se">&lt;/span> -n istio-system &lt;span class="se">\
+&lt;/span>&lt;span class="se">&lt;/span> --set base.enableCRDTemplates&lt;span class="o">=&lt;/span>&lt;span class="nb">true&lt;/span>
+&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div></description><dc:creator>kbsonlong</dc:creator><category>istio</category><category>云原生</category></item><item><title>Istio 数据平面Pod启动过程详解</title><link>http://example.org/posts/istio/dc5625/</link><pubDate>Sat, 10 Sep 2022 14:33:42 +0800</pubDate><author>kbsonlong@gmail.com (kbsonlong)</author><atom:modified>Sat, 10 Sep 2022 14:33:42 +0800</atom:modified><guid>http://example.org/posts/istio/dc5625/</guid><description>本文将为你讲解： Istio 中 sidecar 自动注入过程 Istio 中的 init 容器启动过程 启用了 Sidecar 自动注入的 Pod 的启动流程 下图中展示了 Istio 数据平面中的 Pod 启动完后的组件。 Istio 中的 sidecar 注入</description><dc:creator>kbsonlong</dc:creator><category>istio</category><category>转载</category><category>云原生</category></item><item><title>理解Iptable</title><link>http://example.org/posts/istio/b7e1eb/</link><pubDate>Sat, 10 Sep 2022 14:30:05 +0800</pubDate><author>kbsonlong@gmail.com (kbsonlong)</author><atom:modified>Sat, 10 Sep 2022 14:30:05 +0800</atom:modified><guid>http://example.org/posts/istio/b7e1eb/</guid><description>iptables 作为 Linux 内核中的重要功能，有着广泛的应用，在 Istio 中默认就是利用 iptables 做透明流量劫持的。理解 iptables，对于我们理解 Istio 的运作有十分重要的作用。</description><dc:creator>kbsonlong</dc:creator><category>istio</category><category>iptable</category><category>转载</category><category>云原生</category></item></channel></rss>

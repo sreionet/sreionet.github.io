@@ -1,0 +1,558 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>云原生技术圈 – metrics</title><link>https://sreionet.github.io/tags/metrics/</link><description>Recent content in metrics on 云原生技术圈</description><generator>Hugo -- gohugo.io</generator><language>zh-CN</language><lastBuildDate>Thu, 12 Jan 2023 13:42:38 +0800</lastBuildDate><atom:link href="https://sreionet.github.io/tags/metrics/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Istio可观测性系列-监控指标没有上报</title><link>https://sreionet.github.io/blog/2023/01/12/istio%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E7%B3%BB%E5%88%97-%E7%9B%91%E6%8E%A7%E6%8C%87%E6%A0%87%E6%B2%A1%E6%9C%89%E4%B8%8A%E6%8A%A5/</link><pubDate>Thu, 12 Jan 2023 13:42:38 +0800</pubDate><guid>https://sreionet.github.io/blog/2023/01/12/istio%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E7%B3%BB%E5%88%97-%E7%9B%91%E6%8E%A7%E6%8C%87%E6%A0%87%E6%B2%A1%E6%9C%89%E4%B8%8A%E6%8A%A5/</guid><description>
+&lt;h3 id="背景">背景&lt;/h3>
+&lt;p>&lt;code>istio&lt;/code> 版本: 1.13.4&lt;/p>
+&lt;p>&lt;code>aeraki&lt;/code> 版本: 1.1.5&lt;/p>
+&lt;p>业务反馈在测试过程中发现 &lt;code>istio_request_total&lt;/code> 指标查找不到,通过Prometheus查看发现这个指标部分服务是正常采集上报。&lt;/p>
+&lt;h3 id="通过-istioctl-ps-预览集群状态">通过 &lt;code>istioctl ps&lt;/code> 预览集群状态&lt;/h3>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># ./istioctl ps&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>NAME CLUSTER CDS LDS EDS RDS ISTIOD VERSION
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>test-1.istio-system NOT SENT NOT SENT NOT SENT NOT SENT istiod-66bd9d59d8-k6qzk 65536.65536.65536
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>test-1.istio-system NOT SENT NOT SENT NOT SENT NOT SENT istiod-66bd9d59d8-k6qzk 65536.65536.65536
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>components-comsumer-sfkt-default-test-rfgds.components-nacos Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.14-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>components-provider-sfkt-default-test-6gw8b.components-nacos Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.14-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>components-server-sfkt-default-test-frjwm.components-nacos Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.14-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>istio-egressgateway-c5b57c584-rz9rw.istio-system Kubernetes SYNCED SYNCED SYNCED NOT SENT istiod-66bd9d59d8-k6qzk 1.13.4
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>istio-ingressgateway-7767c959b4-jkbgb.istio-system Kubernetes SYNCED SYNCED SYNCED NOT SENT istiod-66bd9d59d8-k6qzk 1.13.4
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mesh-demo-dubbo-consumer-test-rpzzh.pulsar-manager Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.14-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mesh-demo-dubbo-pv1111-test-rfmtg.pulsar-manager Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.14-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mesh-demo-dubbo-pv2-test-gjhwb.pulsar-manager Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.14-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mesh-demo-httpv1-test-8b7f5.pulsar-manager Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.14-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mesh-demo-httpv2-test-qlkhb.pulsar-manager Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.14-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>sl-job-agentd-sl-job-agentd-test-fskpl-lg8hq.sl-devops Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.12-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>sl-job-agentd-sl-job-server-test-fskpl-z5b4t.sl-devops Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.12-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>sl-job-web-api-sl-job-web-api-dev-2pm6n.sl-devops Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.12-dev
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>可以看到整个&lt;code>istio&lt;/code> 集群下存在多个版本，其中 &lt;code>1.13.4&lt;/code> 是属于istio正常安装版本，发现 &lt;code>1.12-dev&lt;/code> pod能够正常上报 &lt;code>istio_request_total&lt;/code> 指标,而 &lt;code>1.14-dev&lt;/code> 没有正常上报。那么 &lt;code>1.12-dev&lt;/code> 和 &lt;code>1.14-dev&lt;/code> 是怎么来的呢？查看这些pod的使用的 &lt;code>istio-proxy&lt;/code> 的镜像是 &lt;code>aeraki&lt;/code> 项目下的 &lt;code>meta-protocol-proxy&lt;/code> 代理镜像，并且使用的版本不一致，将无法正常上报指标的 &lt;code>istio-proxy&lt;/code> 镜像修改后可以正常查看指标。&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># kubectl get pod -n ns sl-starter-mesh-demo-sfkt-deve-default-deve-8hlgb -o yaml|more&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>apiVersion: v1
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>kind: Pod
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>metadata:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> annotations:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> kubectl.kubernetes.io/default-container: sl-starter-mesh-demo-hades
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> kubectl.kubernetes.io/default-logs-container: sl-starter-mesh-demo-hades
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> lifecycle.apps.kruise.io/timestamp: &lt;span style="color:#e6db74">&amp;#34;2023-01-03T07:45:40Z&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> lxcfs-admission-webhook.aliyun.com/status: mutated
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> prometheus.io/path: /stats/prometheus
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> prometheus.io/port: &lt;span style="color:#e6db74">&amp;#34;15020&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> prometheus.io/scrape: &lt;span style="color:#e6db74">&amp;#34;true&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> sidecar.istio.io/bootstrapOverride: aeraki-bootstrap-config
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> sidecar.istio.io/inject: &lt;span style="color:#e6db74">&amp;#34;true&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> sidecar.istio.io/proxyImage: aeraki/meta-protocol-proxy-debug:1.1.2
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># kubectl get pod -n ns components-comsumer-sfkt-default-test-rfgds -o yaml|more&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>apiVersion: v1
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>kind: Pod
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>metadata:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> annotations:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> kubectl.kubernetes.io/default-container: components-comsumer
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> kubectl.kubernetes.io/default-logs-container: components-comsumer
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> lifecycle.apps.kruise.io/timestamp: &lt;span style="color:#e6db74">&amp;#34;2023-01-12T05:32:51Z&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> lxcfs-admission-webhook.aliyun.com/status: mutated
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> prometheus.io/path: /stats/prometheus
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> prometheus.io/port: &lt;span style="color:#e6db74">&amp;#34;15020&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> prometheus.io/scrape: &lt;span style="color:#e6db74">&amp;#34;true&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> sidecar.istio.io/bootstrapOverride: aeraki-bootstrap-config
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> sidecar.istio.io/inject: &lt;span style="color:#e6db74">&amp;#34;true&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> sidecar.istio.io/proxyImage: aeraki/meta-protocol-proxy-debug:1.1.5
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="根本原因">根本原因&lt;/h3>
+&lt;p>通过Istio官方文档发现istio默认指标也是由 &lt;code>EnvoyFilter&lt;/code> 控制采集，集群内安装的是1.13.4,默认配置了1.11、1.12和1.13版本的，但是没有1.14版本的，而 &lt;code>aeraki/meta-protocol-proxy-debug:1.1.5&lt;/code> 是基于 istio 1.14版本开发的，由于没有集群内没有配置1.14版本的 &lt;code>EnvoyFilter&lt;/code>,所以最终导致1.12版本的proxy可以正常上报指标，1.14版本的proxy没有正常上报指标&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># kubectl get envoyfilter -n istio-system&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>NAME AGE
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>stats-filter-1.11 69d
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>stats-filter-1.12 69d
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>stats-filter-1.13 69d
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>tcp-stats-filter-1.11 69d
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>tcp-stats-filter-1.12 69d
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>tcp-stats-filter-1.13 69d
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># kubectl get envoyfilter -n istio-system&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>NAME AGE
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>stats-filter-1.11 69d
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>stats-filter-1.12 69d
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>stats-filter-1.13 69d
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>stats-filter-1.14 2m15s
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>tcp-stats-filter-1.11 69d
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>tcp-stats-filter-1.12 69d
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>tcp-stats-filter-1.13 69d
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>tcp-stats-filter-1.14 2m8s
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>添加1.14版本相关的 &lt;code>EnvoyFilter&lt;/code> 之后指标可以正常上报&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># curl 10.98.211.214:15020/stats/prometheus|grep istio_request|more&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> % Total % Received % Xferd Average Speed Time Time Time Current
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Dload Upload Total Spent Left Speed
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">100&lt;/span> &lt;span style="color:#ae81ff">13666&lt;/span> &lt;span style="color:#ae81ff">0&lt;/span> &lt;span style="color:#ae81ff">13666&lt;/span> &lt;span style="color:#ae81ff">0&lt;/span> &lt;span style="color:#ae81ff">0&lt;/span> &lt;span style="color:#ae81ff">23879&lt;/span> &lt;span style="color:#ae81ff">0&lt;/span> --:--:-- --:--:-- --:--:-- 23849# TYPE istio_requests_total counter
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>istio_requests_total&lt;span style="color:#f92672">{&lt;/span>response_code&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;200&amp;#34;&lt;/span>,reporter&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;destination&amp;#34;&lt;/span>,source_workload&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-server-sfkt-default-test&amp;#34;&lt;/span>,source_workload_namespace&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-nacos&amp;#34;&lt;/span>,source_pr
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>incipal&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;spiffe://kubeyy.com/ns/components-nacos/sa/default&amp;#34;&lt;/span>,source_app&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-server-sfkt-default-test&amp;#34;&lt;/span>,source_version&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;unknown&amp;#34;&lt;/span>,source_cluster&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;Kubernetes&amp;#34;&lt;/span>,destinati
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>on_workload&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-comsumer-sfkt-default-test&amp;#34;&lt;/span>,destination_workload_namespace&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-nacos&amp;#34;&lt;/span>,destination_principal&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;spiffe://kubeyy.com/ns/components-nacos/sa/defa
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74">ult&amp;#34;&lt;/span>,destination_app&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-comsumer-sfkt-default-test&amp;#34;&lt;/span>,destination_version&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;unknown&amp;#34;&lt;/span>,destination_service&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-comsumer-test-ps.components-nacos.svc.kubeyy.com&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>,destination_service_name&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-comsumer-test-ps&amp;#34;&lt;/span>,destination_service_namespace&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-nacos&amp;#34;&lt;/span>,destination_cluster&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;Kubernetes&amp;#34;&lt;/span>,request_protocol&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;http&amp;#34;&lt;/span>,response_f
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>lags&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;-&amp;#34;&lt;/span>,grpc_response_status&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;&amp;#34;&lt;/span>,connection_security_policy&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;mutual_tls&amp;#34;&lt;/span>,source_canonical_service&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-server-sfkt-default-test&amp;#34;&lt;/span>,destination_canonical_service&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;compo
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74">nents-comsumer-sfkt-default-test&amp;#34;&lt;/span>,source_canonical_revision&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;latest&amp;#34;&lt;/span>,destination_canonical_revision&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;latest&amp;#34;&lt;/span>&lt;span style="color:#f92672">}&lt;/span> &lt;span style="color:#ae81ff">699&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>istio_requests_total&lt;span style="color:#f92672">{&lt;/span>response_code&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;200&amp;#34;&lt;/span>,reporter&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;destination&amp;#34;&lt;/span>,source_workload&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;unknown&amp;#34;&lt;/span>,source_workload_namespace&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;unknown&amp;#34;&lt;/span>,source_principal&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;unknown&amp;#34;&lt;/span>,source_app&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;unknown
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74">&amp;#34;&lt;/span>,source_version&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;unknown&amp;#34;&lt;/span>,source_cluster&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;unknown&amp;#34;&lt;/span>,destination_workload&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-comsumer-sfkt-default-test&amp;#34;&lt;/span>,destination_workload_namespace&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-nacos&amp;#34;&lt;/span>,destinati
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>on_principal&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;unknown&amp;#34;&lt;/span>,destination_app&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-comsumer-sfkt-default-test&amp;#34;&lt;/span>,destination_version&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;unknown&amp;#34;&lt;/span>,destination_service&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;svc-metrics-components-nacos-test.componen
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74">ts-nacos.svc.kubeyy.com&amp;#34;&lt;/span>,destination_service_name&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;svc-metrics-components-nacos-test&amp;#34;&lt;/span>,destination_service_namespace&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;components-nacos&amp;#34;&lt;/span>,destination_cluster&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;Kubernetes&amp;#34;&lt;/span>,requ
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>est_protocol&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;http&amp;#34;&lt;/span>,response_flags&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;-&amp;#34;&lt;/span>,grpc_response_status&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;&amp;#34;&lt;/span>,connection_security_policy&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;none&amp;#34;&lt;/span>,source_canonical_service&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;unknown&amp;#34;&lt;/span>,destination_canonical_service&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;component
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74">s-comsumer-sfkt-default-test&amp;#34;&lt;/span>,source_canonical_revision&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;latest&amp;#34;&lt;/span>,destination_canonical_revision&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;latest&amp;#34;&lt;/span>&lt;span style="color:#f92672">}&lt;/span> &lt;span style="color:#ae81ff">2&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Blog: Istio可观测性系列-自定义指标</title><link>https://sreionet.github.io/blog/2023/01/12/istio%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E7%B3%BB%E5%88%97-%E8%87%AA%E5%AE%9A%E4%B9%89%E6%8C%87%E6%A0%87/</link><pubDate>Thu, 12 Jan 2023 13:26:23 +0800</pubDate><guid>https://sreionet.github.io/blog/2023/01/12/istio%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E7%B3%BB%E5%88%97-%E8%87%AA%E5%AE%9A%E4%B9%89%E6%8C%87%E6%A0%87/</guid><description>
+&lt;p>默认情况下，Istio 定义并生成一组标准指标&lt;/p>
+&lt;h3 id="istio-默认指标">istio 默认指标&lt;/h3>
+&lt;h4 id="stats-filter-istio_version">stats-filter-&amp;lt;istio_version&amp;gt;&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">cat &amp;lt;&amp;lt; EOF | kubectl apply -f - &lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">apiVersion&lt;/span>: &lt;span style="color:#ae81ff">networking.istio.io/v1alpha3&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">kind&lt;/span>: &lt;span style="color:#ae81ff">EnvoyFilter&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">metadata&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">labels&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">istio.io/rev&lt;/span>: &lt;span style="color:#ae81ff">default&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">stats-filter-1.14&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">namespace&lt;/span>: &lt;span style="color:#ae81ff">istio-system&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">spec&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configPatches&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - &lt;span style="color:#f92672">applyTo&lt;/span>: &lt;span style="color:#ae81ff">HTTP_FILTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">match&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">context&lt;/span>: &lt;span style="color:#ae81ff">SIDECAR_OUTBOUND&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">listener&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filterChain&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">envoy.filters.network.http_connection_manager&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">subFilter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">envoy.filters.http.router&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxy&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxyVersion&lt;/span>: &lt;span style="color:#ae81ff">^1\.14.*&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">patch&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">operation&lt;/span>: &lt;span style="color:#ae81ff">INSERT_BEFORE&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">istio.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">typed_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#39;@type&amp;#39;&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/udpa.type.v1.TypedStruct&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">type_url&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configuration&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#39;@type&amp;#39;&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/google.protobuf.StringValue&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>: |&lt;span style="color:#e6db74">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;debug&amp;#34;: &amp;#34;false&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;stat_prefix&amp;#34;: &amp;#34;istio&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> }&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">root_id&lt;/span>: &lt;span style="color:#ae81ff">stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">code&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">local&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">inline_string&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">runtime&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.runtime.null&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_id&lt;/span>: &lt;span style="color:#ae81ff">stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - &lt;span style="color:#f92672">applyTo&lt;/span>: &lt;span style="color:#ae81ff">HTTP_FILTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">match&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">context&lt;/span>: &lt;span style="color:#ae81ff">SIDECAR_INBOUND&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">listener&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filterChain&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">envoy.filters.network.http_connection_manager&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">subFilter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">envoy.filters.http.router&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxy&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxyVersion&lt;/span>: &lt;span style="color:#ae81ff">^1\.14.*&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">patch&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">operation&lt;/span>: &lt;span style="color:#ae81ff">INSERT_BEFORE&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">istio.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">typed_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#39;@type&amp;#39;&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/udpa.type.v1.TypedStruct&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">type_url&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configuration&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#39;@type&amp;#39;&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/google.protobuf.StringValue&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>: |&lt;span style="color:#e6db74">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;debug&amp;#34;: &amp;#34;false&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;stat_prefix&amp;#34;: &amp;#34;istio&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;disable_host_header_fallback&amp;#34;: true,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;metrics&amp;#34;: [
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;dimensions&amp;#34;: {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;destination_cluster&amp;#34;: &amp;#34;node.metadata[&amp;#39;CLUSTER_ID&amp;#39;]&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;source_cluster&amp;#34;: &amp;#34;downstream_peer.cluster_id&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> }
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> }
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> ]
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> }&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">root_id&lt;/span>: &lt;span style="color:#ae81ff">stats_inbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">code&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">local&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">inline_string&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">runtime&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.runtime.null&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_id&lt;/span>: &lt;span style="color:#ae81ff">stats_inbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - &lt;span style="color:#f92672">applyTo&lt;/span>: &lt;span style="color:#ae81ff">HTTP_FILTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">match&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">context&lt;/span>: &lt;span style="color:#ae81ff">GATEWAY&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">listener&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filterChain&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">envoy.filters.network.http_connection_manager&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">subFilter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">envoy.filters.http.router&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxy&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxyVersion&lt;/span>: &lt;span style="color:#ae81ff">^1\.14.*&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">patch&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">operation&lt;/span>: &lt;span style="color:#ae81ff">INSERT_BEFORE&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">istio.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">typed_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#39;@type&amp;#39;&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/udpa.type.v1.TypedStruct&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">type_url&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configuration&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#39;@type&amp;#39;&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/google.protobuf.StringValue&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>: |&lt;span style="color:#e6db74">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;debug&amp;#34;: &amp;#34;false&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;stat_prefix&amp;#34;: &amp;#34;istio&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;disable_host_header_fallback&amp;#34;: true
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> }&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">root_id&lt;/span>: &lt;span style="color:#ae81ff">stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">code&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">local&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">inline_string&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">runtime&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.runtime.null&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_id&lt;/span>: &lt;span style="color:#ae81ff">stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">priority&lt;/span>: -&lt;span style="color:#ae81ff">1&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">EOF&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="tcp-stats-filter-istio_version">tcp-stats-filter-&amp;lt;istio_version&amp;gt;&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">cat &amp;lt;&amp;lt; EOF | kubectl apply -f - &lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">apiVersion&lt;/span>: &lt;span style="color:#ae81ff">networking.istio.io/v1alpha3&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">kind&lt;/span>: &lt;span style="color:#ae81ff">EnvoyFilter&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">metadata&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">labels&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">istio.io/rev&lt;/span>: &lt;span style="color:#ae81ff">default&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">tcp-stats-filter-1.14&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">namespace&lt;/span>: &lt;span style="color:#ae81ff">istio-system&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">spec&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configPatches&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - &lt;span style="color:#f92672">applyTo&lt;/span>: &lt;span style="color:#ae81ff">NETWORK_FILTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">match&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">context&lt;/span>: &lt;span style="color:#ae81ff">SIDECAR_INBOUND&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">listener&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filterChain&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">envoy.filters.network.tcp_proxy&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxy&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxyVersion&lt;/span>: &lt;span style="color:#ae81ff">^1\.14.*&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">patch&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">operation&lt;/span>: &lt;span style="color:#ae81ff">INSERT_BEFORE&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">istio.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">typed_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#39;@type&amp;#39;&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/udpa.type.v1.TypedStruct&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">type_url&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/envoy.extensions.filters.network.wasm.v3.Wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configuration&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#39;@type&amp;#39;&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/google.protobuf.StringValue&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>: |&lt;span style="color:#e6db74">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;debug&amp;#34;: &amp;#34;false&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;stat_prefix&amp;#34;: &amp;#34;istio&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;metrics&amp;#34;: [
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;dimensions&amp;#34;: {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;destination_cluster&amp;#34;: &amp;#34;node.metadata[&amp;#39;CLUSTER_ID&amp;#39;]&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;source_cluster&amp;#34;: &amp;#34;downstream_peer.cluster_id&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> }
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> }
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> ]
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> }&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">root_id&lt;/span>: &lt;span style="color:#ae81ff">stats_inbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">code&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">local&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">inline_string&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">runtime&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.runtime.null&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_id&lt;/span>: &lt;span style="color:#ae81ff">tcp_stats_inbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - &lt;span style="color:#f92672">applyTo&lt;/span>: &lt;span style="color:#ae81ff">NETWORK_FILTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">match&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">context&lt;/span>: &lt;span style="color:#ae81ff">SIDECAR_OUTBOUND&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">listener&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filterChain&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">envoy.filters.network.tcp_proxy&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxy&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxyVersion&lt;/span>: &lt;span style="color:#ae81ff">^1\.14.*&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">patch&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">operation&lt;/span>: &lt;span style="color:#ae81ff">INSERT_BEFORE&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">istio.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">typed_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#39;@type&amp;#39;&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/udpa.type.v1.TypedStruct&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">type_url&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/envoy.extensions.filters.network.wasm.v3.Wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configuration&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#39;@type&amp;#39;&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/google.protobuf.StringValue&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>: |&lt;span style="color:#e6db74">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;debug&amp;#34;: &amp;#34;false&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;stat_prefix&amp;#34;: &amp;#34;istio&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> }&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">root_id&lt;/span>: &lt;span style="color:#ae81ff">stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">code&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">local&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">inline_string&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">runtime&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.runtime.null&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_id&lt;/span>: &lt;span style="color:#ae81ff">tcp_stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - &lt;span style="color:#f92672">applyTo&lt;/span>: &lt;span style="color:#ae81ff">NETWORK_FILTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">match&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">context&lt;/span>: &lt;span style="color:#ae81ff">GATEWAY&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">listener&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filterChain&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">envoy.filters.network.tcp_proxy&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxy&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxyVersion&lt;/span>: &lt;span style="color:#ae81ff">^1\.14.*&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">patch&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">operation&lt;/span>: &lt;span style="color:#ae81ff">INSERT_BEFORE&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">istio.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">typed_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#39;@type&amp;#39;&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/udpa.type.v1.TypedStruct&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">type_url&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/envoy.extensions.filters.network.wasm.v3.Wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configuration&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#39;@type&amp;#39;&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/google.protobuf.StringValue&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>: |&lt;span style="color:#e6db74">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;debug&amp;#34;: &amp;#34;false&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &amp;#34;stat_prefix&amp;#34;: &amp;#34;istio&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> }&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">root_id&lt;/span>: &lt;span style="color:#ae81ff">stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">code&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">local&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">inline_string&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">runtime&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.runtime.null&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_id&lt;/span>: &lt;span style="color:#ae81ff">tcp_stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">priority&lt;/span>: -&lt;span style="color:#ae81ff">1&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">EOF&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="自定义指标">自定义指标&lt;/h3>
+&lt;h4 id="区分-sidecar-和-gateway-的入站和出站请求">区分 &lt;code>sidecar&lt;/code> 和 &lt;code>gateway&lt;/code> 的入站和出站请求&lt;/h4>
+&lt;p>添加request_host 和 destination_port 维度到两者发出的 requests_total 指标 入站和出站方向的网关和边车&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="display:flex;">&lt;span>---
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">apiVersion&lt;/span>: &lt;span style="color:#ae81ff">networking.istio.io/v1alpha3&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">kind&lt;/span>: &lt;span style="color:#ae81ff">EnvoyFilter&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">metadata&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">stats-filter-1.13&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">namespace&lt;/span>: &lt;span style="color:#ae81ff">istio-system&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">labels&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">istio.io/rev&lt;/span>: &lt;span style="color:#ae81ff">default&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">spec&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configPatches&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - &lt;span style="color:#f92672">applyTo&lt;/span>: &lt;span style="color:#ae81ff">HTTP_FILTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">match&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">context&lt;/span>: &lt;span style="color:#ae81ff">SIDECAR_OUTBOUND&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxy&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxyVersion&lt;/span>: &lt;span style="color:#e6db74">&amp;#39;^1\.13.*&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">listener&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filterChain&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;envoy.filters.network.http_connection_manager&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">subFilter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;envoy.filters.http.router&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">patch&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">operation&lt;/span>: &lt;span style="color:#ae81ff">INSERT_BEFORE&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">istio.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">typed_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;@type&amp;#34;: &lt;/span>&lt;span style="color:#ae81ff">type.googleapis.com/udpa.type.v1.TypedStruct&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">type_url&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">root_id&lt;/span>: &lt;span style="color:#ae81ff">stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configuration&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;@type&amp;#34;: &lt;/span>&lt;span style="color:#e6db74">&amp;#34;type.googleapis.com/google.protobuf.StringValue&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>: |&lt;span style="color:#e6db74">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &lt;/span> {&lt;span style="color:#e6db74">&amp;#34;metrics&amp;#34;&lt;/span>:[{&lt;span style="color:#e6db74">&amp;#34;dimensions&amp;#34;&lt;/span>:{&lt;span style="color:#e6db74">&amp;#34;destination_port&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;string(destination.port)&amp;#34;&lt;/span>,&lt;span style="color:#e6db74">&amp;#34;request_host&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;request.host&amp;#34;&lt;/span>},&lt;span style="color:#e6db74">&amp;#34;name&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;requests_total&amp;#34;&lt;/span>}]}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_id&lt;/span>: &lt;span style="color:#ae81ff">stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">runtime&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.runtime.v8&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">allow_precompiled&lt;/span>: &lt;span style="color:#66d9ef">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">code&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">local&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filename&lt;/span>: &lt;span style="color:#ae81ff">/etc/istio/extensions/stats-filter.compiled.wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - &lt;span style="color:#f92672">applyTo&lt;/span>: &lt;span style="color:#ae81ff">HTTP_FILTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">match&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">context&lt;/span>: &lt;span style="color:#ae81ff">SIDECAR_INBOUND&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxy&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxyVersion&lt;/span>: &lt;span style="color:#e6db74">&amp;#39;^1\.13.*&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">listener&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filterChain&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;envoy.filters.network.http_connection_manager&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">subFilter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;envoy.filters.http.router&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">patch&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">operation&lt;/span>: &lt;span style="color:#ae81ff">INSERT_BEFORE&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">istio.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">typed_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;@type&amp;#34;: &lt;/span>&lt;span style="color:#ae81ff">type.googleapis.com/udpa.type.v1.TypedStruct&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">type_url&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">root_id&lt;/span>: &lt;span style="color:#ae81ff">stats_inbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configuration&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;@type&amp;#34;: &lt;/span>&lt;span style="color:#e6db74">&amp;#34;type.googleapis.com/google.protobuf.StringValue&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>: |&lt;span style="color:#e6db74">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &lt;/span> {&lt;span style="color:#e6db74">&amp;#34;metrics&amp;#34;&lt;/span>:[{&lt;span style="color:#e6db74">&amp;#34;dimensions&amp;#34;&lt;/span>:{&lt;span style="color:#e6db74">&amp;#34;destination_port&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;string(destination.port)&amp;#34;&lt;/span>,&lt;span style="color:#e6db74">&amp;#34;request_host&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;request.host&amp;#34;&lt;/span>},&lt;span style="color:#e6db74">&amp;#34;name&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;requests_total&amp;#34;&lt;/span>}]}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_id&lt;/span>: &lt;span style="color:#ae81ff">stats_inbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">runtime&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.runtime.v8&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">allow_precompiled&lt;/span>: &lt;span style="color:#66d9ef">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">code&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">local&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filename&lt;/span>: &lt;span style="color:#ae81ff">/etc/istio/extensions/stats-filter.compiled.wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - &lt;span style="color:#f92672">applyTo&lt;/span>: &lt;span style="color:#ae81ff">HTTP_FILTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">match&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">context&lt;/span>: &lt;span style="color:#ae81ff">GATEWAY&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxy&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxyVersion&lt;/span>: &lt;span style="color:#e6db74">&amp;#39;^1\.13.*&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">listener&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filterChain&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;envoy.filters.network.http_connection_manager&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">subFilter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;envoy.filters.http.router&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">patch&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">operation&lt;/span>: &lt;span style="color:#ae81ff">INSERT_BEFORE&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">istio.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">typed_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;@type&amp;#34;: &lt;/span>&lt;span style="color:#ae81ff">type.googleapis.com/udpa.type.v1.TypedStruct&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">type_url&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">root_id&lt;/span>: &lt;span style="color:#ae81ff">stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configuration&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;@type&amp;#34;: &lt;/span>&lt;span style="color:#e6db74">&amp;#34;type.googleapis.com/google.protobuf.StringValue&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>: |&lt;span style="color:#e6db74">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &lt;/span> {&lt;span style="color:#e6db74">&amp;#34;metrics&amp;#34;&lt;/span>:[{&lt;span style="color:#e6db74">&amp;#34;dimensions&amp;#34;&lt;/span>:{&lt;span style="color:#e6db74">&amp;#34;destination_port&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;string(destination.port)&amp;#34;&lt;/span>,&lt;span style="color:#e6db74">&amp;#34;request_host&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;request.host&amp;#34;&lt;/span>},&lt;span style="color:#e6db74">&amp;#34;name&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;requests_total&amp;#34;&lt;/span>}]}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_id&lt;/span>: &lt;span style="color:#ae81ff">stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">runtime&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.runtime.v8&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">allow_precompiled&lt;/span>: &lt;span style="color:#66d9ef">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">code&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">local&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filename&lt;/span>: &lt;span style="color:#ae81ff">/etc/istio/extensions/stats-filter.compiled.wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>---
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">apiVersion&lt;/span>: &lt;span style="color:#ae81ff">networking.istio.io/v1alpha3&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">kind&lt;/span>: &lt;span style="color:#ae81ff">EnvoyFilter&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">metadata&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">tcp-stats-filter-1.13&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">namespace&lt;/span>: &lt;span style="color:#ae81ff">istio-system&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">labels&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">istio.io/rev&lt;/span>: &lt;span style="color:#ae81ff">default&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">spec&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configPatches&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - &lt;span style="color:#f92672">applyTo&lt;/span>: &lt;span style="color:#ae81ff">NETWORK_FILTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">match&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">context&lt;/span>: &lt;span style="color:#ae81ff">SIDECAR_INBOUND&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxy&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxyVersion&lt;/span>: &lt;span style="color:#e6db74">&amp;#39;^1\.13.*&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">listener&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filterChain&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;envoy.filters.network.tcp_proxy&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">patch&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">operation&lt;/span>: &lt;span style="color:#ae81ff">INSERT_BEFORE&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">istio.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">typed_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;@type&amp;#34;: &lt;/span>&lt;span style="color:#ae81ff">type.googleapis.com/udpa.type.v1.TypedStruct&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">type_url&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/envoy.extensions.filters.network.wasm.v3.Wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">root_id&lt;/span>: &lt;span style="color:#ae81ff">stats_inbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configuration&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;@type&amp;#34;: &lt;/span>&lt;span style="color:#e6db74">&amp;#34;type.googleapis.com/google.protobuf.StringValue&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>: |&lt;span style="color:#e6db74">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &lt;/span> {&lt;span style="color:#e6db74">&amp;#34;metrics&amp;#34;&lt;/span>:[{&lt;span style="color:#e6db74">&amp;#34;dimensions&amp;#34;&lt;/span>:{&lt;span style="color:#e6db74">&amp;#34;destination_port&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;string(destination.port)&amp;#34;&lt;/span>,&lt;span style="color:#e6db74">&amp;#34;request_host&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;request.host&amp;#34;&lt;/span>},&lt;span style="color:#e6db74">&amp;#34;name&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;requests_total&amp;#34;&lt;/span>}]}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_id&lt;/span>: &lt;span style="color:#ae81ff">tcp_stats_inbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">runtime&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.runtime.v8&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">allow_precompiled&lt;/span>: &lt;span style="color:#66d9ef">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">code&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">local&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filename&lt;/span>: &lt;span style="color:#ae81ff">/etc/istio/extensions/stats-filter.compiled.wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - &lt;span style="color:#f92672">applyTo&lt;/span>: &lt;span style="color:#ae81ff">NETWORK_FILTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">match&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">context&lt;/span>: &lt;span style="color:#ae81ff">SIDECAR_OUTBOUND&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxy&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxyVersion&lt;/span>: &lt;span style="color:#e6db74">&amp;#39;^1\.13.*&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">listener&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filterChain&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;envoy.filters.network.tcp_proxy&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">patch&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">operation&lt;/span>: &lt;span style="color:#ae81ff">INSERT_BEFORE&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">istio.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">typed_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;@type&amp;#34;: &lt;/span>&lt;span style="color:#ae81ff">type.googleapis.com/udpa.type.v1.TypedStruct&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">type_url&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/envoy.extensions.filters.network.wasm.v3.Wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">root_id&lt;/span>: &lt;span style="color:#ae81ff">stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configuration&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;@type&amp;#34;: &lt;/span>&lt;span style="color:#e6db74">&amp;#34;type.googleapis.com/google.protobuf.StringValue&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>: |&lt;span style="color:#e6db74">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &lt;/span> {&lt;span style="color:#e6db74">&amp;#34;metrics&amp;#34;&lt;/span>:[{&lt;span style="color:#e6db74">&amp;#34;dimensions&amp;#34;&lt;/span>:{&lt;span style="color:#e6db74">&amp;#34;destination_port&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;string(destination.port)&amp;#34;&lt;/span>,&lt;span style="color:#e6db74">&amp;#34;request_host&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;request.host&amp;#34;&lt;/span>},&lt;span style="color:#e6db74">&amp;#34;name&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;requests_total&amp;#34;&lt;/span>}]}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_id&lt;/span>: &lt;span style="color:#ae81ff">tcp_stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">runtime&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.runtime.v8&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">allow_precompiled&lt;/span>: &lt;span style="color:#66d9ef">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">code&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">local&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filename&lt;/span>: &lt;span style="color:#ae81ff">/etc/istio/extensions/stats-filter.compiled.wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - &lt;span style="color:#f92672">applyTo&lt;/span>: &lt;span style="color:#ae81ff">NETWORK_FILTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">match&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">context&lt;/span>: &lt;span style="color:#ae81ff">GATEWAY&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxy&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">proxyVersion&lt;/span>: &lt;span style="color:#e6db74">&amp;#39;^1\.13.*&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">listener&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filterChain&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filter&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;envoy.filters.network.tcp_proxy&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">patch&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">operation&lt;/span>: &lt;span style="color:#ae81ff">INSERT_BEFORE&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">name&lt;/span>: &lt;span style="color:#ae81ff">istio.stats&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">typed_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;@type&amp;#34;: &lt;/span>&lt;span style="color:#ae81ff">type.googleapis.com/udpa.type.v1.TypedStruct&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">type_url&lt;/span>: &lt;span style="color:#ae81ff">type.googleapis.com/envoy.extensions.filters.network.wasm.v3.Wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">root_id&lt;/span>: &lt;span style="color:#ae81ff">stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">configuration&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;@type&amp;#34;: &lt;/span>&lt;span style="color:#e6db74">&amp;#34;type.googleapis.com/google.protobuf.StringValue&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">value&lt;/span>: |&lt;span style="color:#e6db74">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#e6db74"> &lt;/span> {&lt;span style="color:#e6db74">&amp;#34;metrics&amp;#34;&lt;/span>:[{&lt;span style="color:#e6db74">&amp;#34;dimensions&amp;#34;&lt;/span>:{&lt;span style="color:#e6db74">&amp;#34;destination_port&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;string(destination.port)&amp;#34;&lt;/span>,&lt;span style="color:#e6db74">&amp;#34;request_host&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;request.host&amp;#34;&lt;/span>},&lt;span style="color:#e6db74">&amp;#34;name&amp;#34;&lt;/span>:&lt;span style="color:#e6db74">&amp;#34;requests_total&amp;#34;&lt;/span>}]}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_config&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">vm_id&lt;/span>: &lt;span style="color:#ae81ff">tcp_stats_outbound&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">runtime&lt;/span>: &lt;span style="color:#ae81ff">envoy.wasm.runtime.v8&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">allow_precompiled&lt;/span>: &lt;span style="color:#66d9ef">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">code&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">local&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">filename&lt;/span>: &lt;span style="color:#ae81ff">/etc/istio/extensions/stats-filter.compiled.wasm&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="参考资料">参考资料&lt;/h3>
+&lt;p>&lt;a href="https://istio.io/latest/zh/docs/tasks/observability/metrics/customize-metrics/">自定义 Istio 指标&lt;/a>&lt;/p></description></item></channel></rss>

@@ -1,0 +1,286 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>云原生技术圈 – envoy</title><link>https://sreionet.github.io/tags/envoy/</link><description>Recent content in envoy on 云原生技术圈</description><generator>Hugo -- gohugo.io</generator><language>zh-CN</language><lastBuildDate>Tue, 13 Sep 2022 10:46:39 +0800</lastBuildDate><atom:link href="https://sreionet.github.io/tags/envoy/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Envoy性能指标</title><link>https://sreionet.github.io/blog/2022/09/13/0affe7/</link><pubDate>Tue, 13 Sep 2022 10:46:39 +0800</pubDate><guid>https://sreionet.github.io/blog/2022/09/13/0affe7/</guid><description>
+&lt;h1 id="envoy-指标">Envoy 指标&lt;/h1>
+&lt;h2 id="envoy-指标概述">Envoy 指标概述&lt;/h2>
+&lt;p>Envoy 的主要目标之一是使网络易于理解。 Envoy 会根据其配置方式产生大量统计信息。一般来说，统计数据(指标)分为三类：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Downstream&lt;/strong>：Downstream 指标与外来的连接/请求有关。它们由 &lt;code>listener&lt;/code>、&lt;code>HTTP connection manager(HCM)&lt;/code>、&lt;code>TCP proxy filter&lt;/code> 等产生。&lt;/li>
+&lt;li>&lt;strong>Upstream&lt;/strong>：Upstream 指标与外向的连接/请求有关。它们由 &lt;code>connection pool&lt;/code>、&lt;code>router filter&lt;/code>、&lt;code>tcp proxy filter&lt;/code>等产生。&lt;/li>
+&lt;li>&lt;strong>Server&lt;/strong>：&lt;code>Server&lt;/code> 指标信息描述 Envoy 服务器实例的运作情况。服务器正常运行时间或分配的内存量等统计信息。&lt;/li>
+&lt;/ul>
+&lt;p>在最简单场景下，单个 Envoy Proxy 通常涉及 &lt;code>Downstream&lt;/code> 和 &lt;code>Upstream&lt;/code> 统计数据。这两种指标反映了取该 &lt;code>网络节点&lt;/code> 的运行情况。来自整个网格的统计数据提供了每个&lt;code> 网络节点&lt;/code> 和整体网络健康状况的非常详细的汇总信息。Envoy 的文档对这些指标有一些简单的说明。&lt;/p>
+&lt;!-- raw HTML omitted -->
+&lt;!-- raw HTML omitted -->
+&lt;!-- raw HTML omitted -->
+&lt;h3 id="tag">Tag&lt;/h3>
+&lt;p>Envoy 的指标还有两个子概念，支持在指标中使用： &lt;code>标签(tags)&lt;/code>/&lt;code>维度(dimensions)&lt;/code> 。这里的 &lt;code>tags&lt;/code> 对等于 Prometheus 指标的 label。意义上，可以理解为：分类维度。&lt;/p>
+&lt;p>Envoy 的 &lt;code>指标&lt;/code> 由规范的字符串来标识。这些字符串的动态部分（子字符串）被提取成为 &lt;code>标签(tag)&lt;/code>。可以通过指定 &lt;a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/metrics/v3/stats.proto#envoy-v3-api-msg-config-metrics-v3-tagspecifier">tag 提取规则(Tag Specifier configuration.)&lt;/a> 来定制 tag 。&lt;/p>
+&lt;p>举个例子：&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">### 1. 原始的 Envoy 指标 ###&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>$ kubectl exec fortio-server -c istio-proxy -- curl &lt;span style="color:#e6db74">&amp;#39;localhost:15000/stats&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 返回：&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>cluster.outbound|8080&lt;span style="color:#f92672">||&lt;/span>fortio-server-l2.mark.svc.cluster.local.external.upstream_rq_2xx: &lt;span style="color:#ae81ff">300&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 其中：&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># - `outbound|8080||fortio-server-l2.mark.svc.cluster.local` 部分是 upstream cluster 的名字。可以正则提取作为 tag。&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># - `2xx` 部分是 HTTP Status Code 的分类。可以正则提取作为 tag。 下文将有这个提取规则的配置说明。&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">### 2. 给 Prometheus 的指标 ###&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>$ kubectl exec fortio-server -c istio-proxy -- curl &lt;span style="color:#e6db74">&amp;#39;localhost:15000/stats?format=prometheus&amp;#39;&lt;/span> | grep &lt;span style="color:#e6db74">&amp;#39;outbound|8080||fortio-server-l2&amp;#39;&lt;/span> | grep &lt;span style="color:#e6db74">&amp;#39;external.upstream_rq&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 返回：&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>envoy_cluster_external_upstream_rq&lt;span style="color:#f92672">{&lt;/span>response_code_class&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;2xx&amp;#34;&lt;/span>,cluster_name&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;outbound|8080||fortio-server-l2.mark.svc.cluster.local&amp;#34;&lt;/span>&lt;span style="color:#f92672">}&lt;/span> &lt;span style="color:#ae81ff">300&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="指标数据类型">指标数据类型&lt;/h3>
+&lt;p>Envoy 发出三种类型的值作为统计信息：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>计数器(Counters)&lt;/strong>：无符号整数，只会增加而不会减少。例如，总请求。&lt;/li>
+&lt;li>&lt;strong>仪表(Gauges)&lt;/strong>：增加和减少的无符号整数。例如，当前活动的请求。&lt;/li>
+&lt;li>&lt;strong>直方图(Histograms)&lt;/strong>：作为指标流的一部分的无符号整数，然后由收集器聚合以最终产生汇总的百分位值(percentile，即平常说的 P99/P50/Pxx)。例如，&lt;code>Upsteam&lt;/code> 响应时间。&lt;/li>
+&lt;/ul>
+&lt;p>在 Envoy 的内部实现中，Counters 和 Gauges 被分批并定期刷新以提高性能。Histograms 在接收时写入。&lt;/p>
+&lt;h2 id="指标释义">指标释义&lt;/h2>
+&lt;p>从指标的产出地点来划分，可以分为：&lt;/p>
+&lt;ul>
+&lt;li>cluster manager : 面向 &lt;code>upstream&lt;/code> 的 L3/L4/L7 层指标&lt;/li>
+&lt;li>http connection manager(HCM) ： 面向 &lt;code>upstream&lt;/code> &amp;amp; &lt;code>downstream&lt;/code> 的 L7 层指标&lt;/li>
+&lt;li>listeners : 面向 &lt;code>downstream&lt;/code> 的 L3/L4 层指标&lt;/li>
+&lt;li>server(全局)&lt;/li>
+&lt;li>watch dog&lt;/li>
+&lt;/ul>
+&lt;p>下面我只选择了部分关键的性能指标来简单说明。&lt;/p>
+&lt;h3 id="cluster-manager">cluster manager&lt;/h3>
+&lt;p>&lt;a href="https://www.envoyproxy.io/docs/envoy/latest/configuration/upstream/cluster_manager/cluster_stats">Envoy 文档:cluster manager stats&lt;/a>&lt;/p>
+&lt;p>上面文档已经说得比较详细了。我只补充一些在性能调优时需要关注的方面。那么，一般需要关注什么指标？&lt;/p>
+&lt;p>我们从著名的 &lt;a href="https://www.brendangregg.com/usemethod.html">Utilization Saturation and Errors (USE)&lt;/a> 方法学来分析。&lt;/p>
+&lt;p>利用率(Utilization):&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>upstream_cx_total&lt;/code> (Counter): 连接数&lt;/li>
+&lt;li>&lt;code>upstream_rq_active&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>饱和度(Saturation):&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>upstream_rq_time&lt;/code> (Histogram): 响应时间&lt;/li>
+&lt;li>&lt;code>upstream_cx_connect_ms&lt;/code> (Histogram)&lt;/li>
+&lt;li>&lt;code>upstream_cx_rx_bytes_buffered&lt;/code>&lt;/li>
+&lt;li>&lt;code>upstream_cx_tx_bytes_buffered&lt;/code>&lt;/li>
+&lt;li>&lt;code>upstream_rq_pending_total&lt;/code>&lt;/li>
+&lt;li>&lt;code>upstream_rq_pending_active&lt;/code> (Gauge)&lt;/li>
+&lt;/ul>
+&lt;p>错误(Error):&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>upstream_cx_connect_fail&lt;/code> (Counter): 连接失败数&lt;/li>
+&lt;li>&lt;code>upstream_cx_connect_timeout&lt;/code> (Counter): 连接超时数&lt;/li>
+&lt;li>&lt;code>upstream_cx_overflow&lt;/code> (Counter): 集群连接断路器溢出的总次数&lt;/li>
+&lt;li>&lt;code>upstream_cx_pool_overflow&lt;/code>&lt;/li>
+&lt;li>&lt;code>upstream_cx_destroy_local_with_active_rq&lt;/code>&lt;/li>
+&lt;li>&lt;code>upstream_cx_destroy_remote_with_active_rq&lt;/code>&lt;/li>
+&lt;li>&lt;code>upstream_rq_timeout&lt;/code>&lt;/li>
+&lt;li>&lt;code>upstream_rq_retry&lt;/code>&lt;/li>
+&lt;li>&lt;code>upstream_rq_rx_reset&lt;/code>&lt;/li>
+&lt;li>&lt;code>upstream_rq_tx_reset&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>其它：&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>upstream_rq_total&lt;/code> (Counter): TPS (吞吐)&lt;/li>
+&lt;li>&lt;code>upstream_cx_destroy_local&lt;/code> (Counter): Envoy 主动断开的连接计数&lt;/li>
+&lt;li>&lt;code>upstream_cx_destroy_remote&lt;/code> (Counter): Envoy 被动断开的连接计数&lt;/li>
+&lt;li>&lt;code>upstream_cx_length_ms&lt;/code> (Histogram)&lt;/li>
+&lt;/ul>
+&lt;h3 id="http-connection-managerhcm">http connection manager(HCM)&lt;/h3>
+&lt;p>&lt;a href="https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/stats">Envoy 文档:http connection manager(HCM) stats&lt;/a>&lt;/p>
+&lt;p>可以认为，这是面向 &lt;code>downstream&lt;/code> &amp;amp; 部分 &lt;code>upstream&lt;/code> 的 L7 层指标&lt;/p>
+&lt;p>利用率(Utilization):&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>downstream_cx_total&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_cx_active&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_cx_http1_active&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_rq_total&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_rq_http1_total&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_rq_active&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>饱和度(Saturation):&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>downstream_cx_rx_bytes_buffered&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_cx_tx_bytes_buffered&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_flow_control_paused_reading_total&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_flow_control_resumed_reading_total&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>错误(Error):&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>downstream_cx_destroy_local_active_rq&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_cx_destroy_remote_active_rq&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_rq_rx_reset&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_rq_tx_reset&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_rq_too_large&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_rq_max_duration_reached&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_rq_timeout&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_rq_overload_close&lt;/code>&lt;/li>
+&lt;li>&lt;code>rs_too_large&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>其它：&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>downstream_cx_destroy_remote&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_cx_destroy_local&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_cx_length_ms&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;h3 id="listeners">listeners&lt;/h3>
+&lt;p>&lt;a href="https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/stats">Envoy 文档:listener stats&lt;/a>&lt;/p>
+&lt;p>可以认为，这是 downstream 的 L3/L4 层的指标。&lt;/p>
+&lt;p>利用率(Utilization):&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>downstream_cx_total&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_cx_active&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>饱和度(Saturation):&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>downstream_pre_cx_active&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>错误(Error):&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>downstream_cx_transport_socket_connect_timeout&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_cx_overflow&lt;/code>&lt;/li>
+&lt;li>&lt;code>no_filter_chain_match&lt;/code>&lt;/li>
+&lt;li>&lt;code>downstream_listener_filter_error&lt;/code>&lt;/li>
+&lt;li>&lt;code>no_certificate&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>其它：&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>downstream_cx_length_ms&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;h3 id="server">server&lt;/h3>
+&lt;p>Envoy 基础信息指标&lt;/p>
+&lt;p>&lt;a href="https://www.envoyproxy.io/docs/envoy/latest/configuration/observability/statistics">Envoy 文档:server stats&lt;/a>&lt;/p>
+&lt;p>利用率(Utilization):&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>concurrency&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>错误(Error):&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>days_until_first_cert_expiring&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;h3 id="watch-dog">watch dog&lt;/h3>
+&lt;p>&lt;a href="https://www.envoyproxy.io/docs/envoy/latest/operations/performance">Envoy 文档: Watchdog&lt;/a>&lt;/p>
+&lt;p>Envoy 还包括一个可配置的看门狗系统，它可以在 Envoy 没有响应时增加统计数据并选择性地终止服务器。 系统有两个独立的看门狗配置，一个用于主线程，一个用于工作线程； 因为不同的线程有不同的工作负载。 这些统计数据有助于从高层次上理解 Envoy 的事件循环是否因为它正在做太多工作、阻塞或没有被操作系统调度而没有响应。&lt;/p>
+&lt;p>饱和度(Saturation):&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>watchdog_mega_miss&lt;/code>(Counter): mega 未命中数&lt;/li>
+&lt;li>&lt;code>watchdog_miss&lt;/code>(Counter): 未命中数&lt;/li>
+&lt;/ul>
+&lt;p>如果你对 watchdog 机制的兴趣，可以参考：&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;a href="https://github.com/envoyproxy/envoy/issues/11391">https://github.com/envoyproxy/envoy/issues/11391&lt;/a>
+&lt;a href="https://github.com/envoyproxy/envoy/issues/11388">https://github.com/envoyproxy/envoy/issues/11388&lt;/a>&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="event-loop">Event loop&lt;/h3>
+&lt;p>&lt;a href="https://www.envoyproxy.io/docs/envoy/latest/operations/performance">Envoy 文档: Event loop&lt;/a>&lt;/p>
+&lt;p>Envoy 架构旨在通过在少量线程上运行事件循环来优化可扩展性和资源利用率。 &lt;code>“main”&lt;/code> 线程负责控制面处理，每个 &lt;code>“worker”&lt;/code> 线程分担数据面的一部分任务。 Envoy 公开了两个统计信息来监控所有这些线程事件循环的性能。&lt;/p>
+&lt;p>跑一轮循环的耗时：事件循环的每次迭代都会执行一些任务。任务数量会随着负载的变化而变化。但是，如果一个或多个线程具有异常长尾循环执行耗时，则可能存在性能问题。例如，负责可能在工作线程之间分配不均，或者插件中可能存在长时间阻塞操作阻碍了任务进度。&lt;/p>
+&lt;p>轮询延迟：在事件循环的每次迭代中，事件调度程序都会轮询 I/O 事件，并在某些 &lt;code>I/O 事件就绪&lt;/code> 或 发生 &lt;code>超时&lt;/code> 时 “唤醒” 线程，以先发生者为准。在 &lt;code>超时&lt;/code> 的情况下，我们可以测量轮询后预期唤醒时间与实际唤醒时间的差值；这种差异称为 “&lt;code>轮询延迟&lt;/code>”。看到一些小的 &lt;code>轮询延迟&lt;/code> 是正常的，通常等于内核调度程序的 “时间片(time slice”)” 或 “量子(quantum)” ——这取决于运行 Envoy 的操作系统 —— 但如果这个数字大大高于其正常观察到的基线，它表示内核调度程序可能发生延迟。&lt;/p>
+&lt;p>可以通过将 &lt;a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/bootstrap/v3/bootstrap.proto#envoy-v3-api-field-config-bootstrap-v3-bootstrap-enable-dispatcher-stats">enable_dispatcher_stats&lt;/a> 设置为 &lt;code>true&lt;/code> 来启用这些统计信息。&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>main&lt;/code> 线程的事件调度器有一个以 &lt;code>server.dispatcher.&lt;/code> 为根的统计树。&lt;/li>
+&lt;li>每个 &lt;code>worker&lt;/code> 线程的事件调度器都有一个以 &lt;code>listener_manager.worker_&amp;lt;id&amp;gt;.dispatcher.&lt;/code> 为根的统计树。&lt;/li>
+&lt;/ul>
+&lt;p>每棵树都有以下统计信息：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Name&lt;/th>
+&lt;th>Type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>loop_duration_us&lt;/td>
+&lt;td>Histogram&lt;/td>
+&lt;td>以微秒为单位的事件循环持续时间&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>poll_delay_us&lt;/td>
+&lt;td>Histogram&lt;/td>
+&lt;td>以微秒为单位的轮询延迟&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>请注意，此处不包括任何辅助(非 main 与 worker)线程。&lt;/p>
+&lt;pre tabindex="0">&lt;code class="language-{hint}" data-lang="{hint}">Watch Dog 和 Event loop 都是解决与监控事件处理延迟与时效的工具，这里有很多细节和故事，甚至可以说到 Linux Kernel。希望本书后面有时间，可以和大家一起学习和分析这些有趣的细节。
+&lt;/code>&lt;/pre>&lt;h2 id="配置说明">配置说明&lt;/h2>
+&lt;pre tabindex="0">&lt;code class="language-{hint}" data-lang="{hint}">本节参考：
+[Envoy 文档](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/metrics/v3/stats.proto)
+&lt;/code>&lt;/pre>&lt;h3 id="configbootstrapv3bootstrap">config.bootstrap.v3.Bootstrap&lt;/h3>
+&lt;p>&lt;a href="https://github.com/envoyproxy/envoy/blob/255af425e1d51066cc8b69a39208b70e18d07073/api/envoy/config/bootstrap/v3/bootstrap.proto#L44">Envoy 文档:config.bootstrap.v3.Bootstrap proto&lt;/a>&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-json" data-lang="json">&lt;span style="display:flex;">&lt;span>{
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;node&amp;#34;&lt;/span>: {&lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>},
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;static_resources&amp;#34;&lt;/span>: {&lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>},
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;dynamic_resources&amp;#34;&lt;/span>: {&lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>},
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;cluster_manager&amp;#34;&lt;/span>: {&lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>},
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;stats_sinks&amp;#34;&lt;/span>: [],
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;stats_config&amp;#34;&lt;/span>: {&lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>},
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;stats_flush_interval&amp;#34;&lt;/span>: {&lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>},
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;stats_flush_on_admin&amp;#34;&lt;/span>: &lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;pre tabindex="0">&lt;code class="language-{hint}" data-lang="{hint}">什么是 `stats sink`？ 本书不作说明。Istio 默认没定制相关配置。以下只说关注的部分配置。
+&lt;/code>&lt;/pre>&lt;ul>
+&lt;li>
+&lt;p>stats_config
+(&lt;a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/metrics/v3/stats.proto#envoy-v3-api-msg-config-metrics-v3-statsconfig">config.metrics.v3.StatsConfig&lt;/a>) 用于内部处理统计信息的配置。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>stats_flush_interval
+(&lt;a href="https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#duration">Duration&lt;/a>) 刷新 &lt;code>stats sink&lt;/code> 的时间间隔。。出于性能原因，Envoy 不会实时刷新 counter ，仅定期刷新 counter 和 gauge 。 如果未指定，则默认值为 5000 毫秒。 &lt;code>stats_flush_interval&lt;/code> 或 &lt;code>stats_flush_on_admin&lt;/code> 只能设置之一。 Duration 必须至少为 1 毫秒，最多为 5 分钟。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>stats_flush_on_admin
+(&lt;a href="https://developers.google.com/protocol-buffers/docs/proto#scalar">bool&lt;/a>) 仅当在 &lt;code>管理界面(admin interface)&lt;/code> 上查询时才将统计信息刷新到 &lt;code>sink&lt;/code>。 如果设置，则不会创建刷新计时器。 只能设置 &lt;code>stats_flush_on_admin&lt;/code> 或 &lt;code>stats_flush_interval&lt;/code> 之一。&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h3 id="configmetricsv3statsconfig">config.metrics.v3.StatsConfig&lt;/h3>
+&lt;p>&lt;a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/metrics/v3/stats.proto#config-metrics-v3-statsconfig">Envoy 文档:config-metrics-v3-statsconfig&lt;/a>&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-json" data-lang="json">&lt;span style="display:flex;">&lt;span>{
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;stats_tags&amp;#34;&lt;/span>: [],
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;use_all_default_tags&amp;#34;&lt;/span>: {&lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>},
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;stats_matcher&amp;#34;&lt;/span>: {&lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>},
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;histogram_bucket_settings&amp;#34;&lt;/span>: []
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>
+&lt;p>stats_tags - 维度提取规则(对应 Prometheus 的 label 提取)
+(&lt;strong>多个&lt;/strong> &lt;a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/metrics/v3/stats.proto#envoy-v3-api-msg-config-metrics-v3-tagspecifier">config.metrics.v3.TagSpecifier&lt;/a> ) 每个 &lt;code>指标名称字符串&lt;/code> 都通过这些标签规则独立处理。 当一个标签匹配时，第一个捕获组不会立即从名称中删除，所以后面的 &lt;a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/metrics/v3/stats.proto#envoy-v3-api-msg-config-metrics-v3-tagspecifier">TagSpecifiers&lt;/a> 也可以重复匹配同一部分。在完成所有标签匹配后，再剪裁 &lt;code>指标名称字符串&lt;/code> 的匹配部分，并作为 &lt;code>stats sink&lt;/code> 的指标名，例如 Prometheus的指标名。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>use_all_default_tags
+(BoolValue) 使用 Envoy 中指定的所有默认标签正则表达式。 这些可以与 stats_tags 中指定的自定义标签结合使用。 它们将在自定义标签之前进行处理。Istio 默认为 false.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>stats_matcher
+(&lt;a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/metrics/v3/stats.proto#envoy-v3-api-msg-config-metrics-v3-statsmatcher">config.metrics.v3.StatsMatcher&lt;/a>) 指定 Envoy 要产出哪些指标。支持 &lt;code>包含&lt;/code>/&lt;code>排除&lt;/code> 规则指定。 如果未提供，则所有指标都将产出。 阻止某些指标集的统计可以提高一点 Envoy 运行性能。&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h3 id="configmetricsv3statsmatcher">config.metrics.v3.StatsMatcher&lt;/h3>
+&lt;p>&lt;a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/metrics/v3/stats.proto#config-metrics-v3-statsmatcher">Envoy 文档:config-metrics-v3-statsmatcher&lt;/a>&lt;/p>
+&lt;p>用于禁用/开启统计指标计算与产出的配置。&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-json" data-lang="json">&lt;span style="display:flex;">&lt;span>{
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;reject_all&amp;#34;&lt;/span>: &lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;exclusion_list&amp;#34;&lt;/span>: {&lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>},
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;inclusion_list&amp;#34;&lt;/span>: {&lt;span style="color:#960050;background-color:#1e0010">...&lt;/span>}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>
+&lt;p>reject_all
+(&lt;a href="https://developers.google.com/protocol-buffers/docs/proto#scalar">bool&lt;/a>) 如果 &lt;code>reject_all&lt;/code> 为 true ，则禁用所有统计信息。 如果 &lt;code>reject_all&lt;/code> 为 false，则启用所有统计信息。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>exclusion_list
+(&lt;a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/type/matcher/v3/string.proto#envoy-v3-api-msg-type-matcher-v3-liststringmatcher">type.matcher.v3.ListStringMatcher&lt;/a>) 排除列表&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>inclusion_list
+(&lt;a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/type/matcher/v3/string.proto#envoy-v3-api-msg-type-matcher-v3-liststringmatcher">type.matcher.v3.ListStringMatcher&lt;/a>) 包含列表&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;pre tabindex="0">&lt;code class="language-{note}" data-lang="{note}">本节参考了： https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/observability/statistics
+下一节，将以 Istio 如何使用上面的配置为例，举例说明。
+&lt;/code>&lt;/pre></description></item></channel></rss>

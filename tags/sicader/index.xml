@@ -1,0 +1,214 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>云原生技术圈 – sicader</title><link>https://sreionet.github.io/tags/sicader/</link><description>Recent content in sicader on 云原生技术圈</description><generator>Hugo -- gohugo.io</generator><language>zh-CN</language><lastBuildDate>Mon, 12 Sep 2022 08:19:28 +0800</lastBuildDate><atom:link href="https://sreionet.github.io/tags/sicader/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: 深入Istio系列-组件详解</title><link>https://sreionet.github.io/blog/2022/09/12/6be15f/</link><pubDate>Mon, 12 Sep 2022 08:19:28 +0800</pubDate><guid>https://sreionet.github.io/blog/2022/09/12/6be15f/</guid><description>
+&lt;p>在前两篇博客中：&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://sreionet.github.io/posts/fe0ba1/">Istio 中的 Sidecar 注入、透明流量劫持及流量路由过程详解&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://sreionet.github.io/posts/61aaaf/">Sidecar 中的流量类型及 iptables 规则详解&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>我向你详细介绍了 Istio 数据平面中的流量，但数据平面并不能孤立的存在，本文将向你展示 Istio 中的控制平面和数据平面各组件的端口及其功能，有助于你了解这些流量之间的关系及故障排查。&lt;/p>
+&lt;h2 id="istio-中的组件及端口示意图">Istio 中的组件及端口示意图&lt;/h2>
+&lt;p>按照习惯，我们首先展示一个全局示意图。下图展示的是 Istio 数据平面中 sidecar 的组成，以及与其交互的对象。&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145000.png" alt="Istio sidecar 组成示意图">&lt;/p>
+&lt;p>我们可以使用 &lt;code>nsenter&lt;/code> 命令进入Bookinfo 示例的 &lt;code>productpage&lt;/code> Pod的网络空间，查看其内部监听的端口信息。&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145055.png" alt="Istio sidecar 中监听的端口信息">&lt;/p>
+&lt;p>从图中我们可以看到除了 &lt;code>productpage&lt;/code> 应用本身监听的 9080 端口以外，Sidecar 容器还有监听大量的其他端口，如 &lt;code>15000&lt;/code>、&lt;code>15001&lt;/code>、&lt;code>15004&lt;/code>、&lt;code>15006&lt;/code>、&lt;code>15021&lt;/code>、&lt;code>15090&lt;/code> 等，你可以在 &lt;a href="https://istio.io/latest/docs/ops/deployment/requirements/">Istio 文档&lt;/a>上了解 Istio 中使用的端口。&lt;/p>
+&lt;p>我们再进入 &lt;code>productpage&lt;/code> Pod 中，使用 &lt;code>lsof -i&lt;/code> 命令查看它打开的端口，如下图所示。&lt;/p>
+&lt;p>!&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145153.png" alt="">&lt;/p>
+&lt;p>我们可以看到其中有 &lt;code>pilot-agent&lt;/code> 与 &lt;code>istiod&lt;/code> 建立了 TCP 连接，上文中所述的监听中的端口，还有在 Pod 内部建立的 TCP 连接，这些连接对应了文章开头的示意图。&lt;/p>
+&lt;p>Sidecar 容器（&lt;code>istio-proxy&lt;/code> ）的根进程是 &lt;code>pilot-agent&lt;/code>，启动命令如下图所示：&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145247.png" alt="">&lt;/p>
+&lt;p>从图中我们可以看到，它 &lt;code>pilot-agent&lt;/code> 进程的 PID 是 1，是它拉起了 &lt;code>envoy&lt;/code> 进程。&lt;/p>
+&lt;p>在 &lt;code>istiod&lt;/code> 的 Pod 中查看它打开的端口，如下图所示。&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145322.png" alt="">&lt;/p>
+&lt;p>我们可以看到其中的监听的端口、进程间和远程通信连接。&lt;/p>
+&lt;h2 id="istio-中各端口的功能概述">Istio 中各端口的功能概述&lt;/h2>
+&lt;p>这些端口在你进行问题排查时可以起着举足轻重的作用。下面将根据端口所在的组件和功能分类描述。&lt;/p>
+&lt;h2 id="istiod-中的端口">Istiod 中的端口&lt;/h2>
+&lt;p>Istiod 中的端口相对比较少且功能单一：&lt;/p>
+&lt;ul>
+&lt;li>9876：ControlZ 用户界面，暴露 &lt;code>istiod&lt;/code> 的进程信息&lt;/li>
+&lt;li>8080：&lt;code>istiod&lt;/code> 调试端口，通过该端口可以查询网格的配置和状态信息&lt;/li>
+&lt;li>15010：暴露 xDS API 和颁发纯文本证书&lt;/li>
+&lt;li>15012：功能同 15010 端口，但使用 TLS 通信&lt;/li>
+&lt;li>15014：暴露控制平面的指标给 Prometheus&lt;/li>
+&lt;li>15017：Sidecar 注入和配置校验端口&lt;/li>
+&lt;/ul>
+&lt;h2 id="sidecar-中的端口">Sidecar 中的端口&lt;/h2>
+&lt;p>从上文中，我们看到 sidecar 中有众多端口：&lt;/p>
+&lt;ul>
+&lt;li>15000：Envoy &lt;a href="https://jimmysong.io/envoy-handbook/admin-interface/enabling-admin-interface.html">管理接口&lt;/a>，你可以用它来查询和修改 Envoy 代理的的配置，详情请参考 &lt;a href="https://www.envoyproxy.io/docs/envoy/latest/operations/admin">Envoy 文档&lt;/a>。&lt;/li>
+&lt;li>15001：用于处理出站流量。&lt;/li>
+&lt;li>15004：调试端口，将在下文中解释。&lt;/li>
+&lt;li>15006：用于处理入站流量。&lt;/li>
+&lt;li>15020：汇总统计数据，对 Envoy 和 DNS 代理进行健康检查，调试 &lt;code>pilot-agent&lt;/code> 进程，将在下文中详细解释。&lt;/li>
+&lt;li>15021：用于 sidecar 健康检查，以判断已注入 Pod 是否准备好接收流量。我们在该端口的 &lt;code>/healthz/ready&lt;/code> 路径上设置了就绪探针，Istio 把 sidecar 的就绪检测交给了 &lt;code>kubelet&lt;/code>，最大化利用 Kubernetes 平台自身的功能。&lt;code>envoy&lt;/code> 进程将健康检查路由到 &lt;code>pilot-agent&lt;/code> 进程的 15020 端口，实际的健康检查将发生在那里。&lt;/li>
+&lt;li>15053：本地 DNS 代理，用于解析 Kubernetes DNS 解析不了的集群内部域名的场景。&lt;/li>
+&lt;li>15090：Envoy Prometheus 查询端口，&lt;code>pilot-agent&lt;/code> 将通过此端口收集统计信息。&lt;/li>
+&lt;/ul>
+&lt;p>以上端口可以分为以下几类：&lt;/p>
+&lt;ul>
+&lt;li>负责进程间通信，例如 15001、15006、15053&lt;/li>
+&lt;li>负责健康检查和信息统计，例如 150021、15090&lt;/li>
+&lt;li>调试：15000、15004&lt;/li>
+&lt;/ul>
+&lt;p>下文将对几个重点端口详解。&lt;/p>
+&lt;h2 id="15000-端口">15000 端口&lt;/h2>
+&lt;p>15000 是 Envoy 的 Admin 接口，该接口允许我们修改 Envoy，并获得一个视图和查询指标和配置。&lt;/p>
+&lt;p>管理接口由一个具有多个端点的 REST API 和一个简单的用户界面组成，你可以使用下面的命令开启 &lt;code>productpage&lt;/code> Pod 中的 Envoy 管理接口视图。&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>kubectl -n default port-forward deploy/productpage-v1 &lt;span style="color:#ae81ff">15000&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>在浏览器中访问 &lt;code>http://localhost:15000&lt;/code>，你将看到 Envoy Admin 界面如下图所示。&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145353.png" alt="">&lt;/p>
+&lt;h2 id="15004-端口">15004 端口&lt;/h2>
+&lt;p>通过 &lt;code>pilot-agent&lt;/code> 代理 &lt;code>istiod&lt;/code> 8080 端口上的调试端点，你可以进入数据平面 Pod 中访问 localhost 的 15004 端口查询网格信息，其效果与下面的 8080 端口等同。&lt;/p>
+&lt;h2 id="8080-端口">8080 端口&lt;/h2>
+&lt;p>你还可以在本地转发 &lt;code>istiod&lt;/code> 8080 端口，请运行下面的命令。&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>kubectl -n istio-system port-forward deploy/istiod &lt;span style="color:#ae81ff">8080&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>在浏览器中访问 &lt;code>http://localhost:8080/debug&lt;/code>，你将看到调试端点，如下图所示。&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145416.png" alt="">&lt;/p>
+&lt;p>当然，这只是一种获取网格信息和调试网格的方式，你还可以使用 &lt;code>istioctl&lt;/code> 命令或 Kiali 来调试，那样将更加高效和直观。&lt;/p>
+&lt;h2 id="15020-端口">15020 端口&lt;/h2>
+&lt;p>15020 端口有三大功能：&lt;/p>
+&lt;ol>
+&lt;li>汇总统计数据：查询 15090 端口获取 &lt;code>envoy&lt;/code> 的指标，也可以配置查询应用程序的指标，将 &lt;code>envoy&lt;/code>、应用程序和自身的指标汇总以供 Prometheus 收集。对应的调试端点是 &lt;code>/stats/prometheus&lt;/code>。&lt;/li>
+&lt;li>对 Envoy 和 DNS 代理进行健康检查：对应的调试端点是 &lt;code>/healthz/ready&lt;/code> 和 &lt;code>/app-health&lt;/code>。&lt;/li>
+&lt;li>调试 &lt;code>pilot-agent&lt;/code> 进程：对应的调试端点是 &lt;code>/quitquitquit&lt;/code>、&lt;code>debug/ndsz&lt;/code> 和 &lt;code>/debug/pprof&lt;/code>。&lt;/li>
+&lt;/ol>
+&lt;p>下图展示的是使用本地端口转发后，在浏览器中打开 &lt;code>http://localhost:15020/debug/pprof&lt;/code> 看到的调试信息。&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145443.png" alt="">&lt;/p>
+&lt;p>图中信息展示的是 &lt;code>pilot-agent&lt;/code> 的堆栈信息。&lt;/p>
+&lt;h2 id="总结">总结&lt;/h2>
+&lt;p>通过对 Istio 中各组件端口的了解，你应该对 Istio 中各组件的关系及其内部流量有了更进一步的认识，熟悉这些端口的功能，有助于对网格的故障排除。&lt;/p></description></item><item><title>Blog: 深入Istio系列-Sidecar 中的流量类型及 iptables 规则详解</title><link>https://sreionet.github.io/blog/2022/09/11/61aaaf/</link><pubDate>Sun, 11 Sep 2022 14:56:39 +0800</pubDate><guid>https://sreionet.github.io/blog/2022/09/11/61aaaf/</guid><description>
+&lt;p>我在&lt;a href="https://sreionet.github.io/posts/fe0ba1/">之前的一篇博客中&lt;/a>讲解过 Istio 中 sidecar 的注入、使用 iptables 进行透明流量拦截及流量路由的详细过程，并以 Bookinfo 示例中的 &lt;code>productpage&lt;/code> 服务访问 &lt;code>reviews&lt;/code> 服务，和 &lt;code>reviews&lt;/code> 服务访问 &lt;code>ratings&lt;/code> 服务为例绘制了透明流量劫持示意图。在那个示意图中仅展示了 &lt;code>reviews&lt;/code> pod 接收流量和对外访问的路由，实际上 sidecar 内的流量远不止于此。&lt;/p>
+&lt;h2 id="istio_output-规则">ISTIO_OUTPUT 规则&lt;/h2>
+&lt;p>在所有的 iptables 调用链中最复杂的一个是 &lt;code>ISTIO_OUTPUT&lt;/code>，其中共有 9 条规则如下：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;strong>Rule&lt;/strong>&lt;/th>
+&lt;th>&lt;strong>target&lt;/strong>&lt;/th>
+&lt;th>&lt;strong>in&lt;/strong>&lt;/th>
+&lt;th>&lt;strong>out&lt;/strong>&lt;/th>
+&lt;th>&lt;strong>source&lt;/strong>&lt;/th>
+&lt;th>&lt;strong>destination&lt;/strong>&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>1&lt;/td>
+&lt;td>RETURN&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>lo&lt;/td>
+&lt;td>127.0.0.6&lt;/td>
+&lt;td>anywhere&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2&lt;/td>
+&lt;td>ISTIO_IN_REDIRECT&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>lo&lt;/td>
+&lt;td>anywhere&lt;/td>
+&lt;td>!localhost owner UID match 1337&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>3&lt;/td>
+&lt;td>RETURN&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>lo&lt;/td>
+&lt;td>anywhere&lt;/td>
+&lt;td>anywhere !owner UID match 1337&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>4&lt;/td>
+&lt;td>RETURN&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>anywhere&lt;/td>
+&lt;td>anywhere owner UID match 1337&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>5&lt;/td>
+&lt;td>ISTIO_IN_REDIRECT&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>lo&lt;/td>
+&lt;td>anywhere&lt;/td>
+&lt;td>!localhost owner GID match 1337&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>6&lt;/td>
+&lt;td>RETURN&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>lo&lt;/td>
+&lt;td>anywhere&lt;/td>
+&lt;td>anywhere !owner GID match 1337&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>7&lt;/td>
+&lt;td>RETURN&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>anywhere&lt;/td>
+&lt;td>anywhere owner GID match 1337&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>8&lt;/td>
+&lt;td>RETURN&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>anywhere&lt;/td>
+&lt;td>localhost&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>9&lt;/td>
+&lt;td>ISTIO_REDIRECT&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>any&lt;/td>
+&lt;td>anywhere&lt;/td>
+&lt;td>anywhere&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>本文将向你展示 Istio sidecar 中的六种流量类型及其 iptables 规则， 以示意图的形式带你一览其全貌，其中详细指出了路由具体使用的是 &lt;code>ISTIO_OUTPUT&lt;/code> 中的哪一条规则。&lt;/p>
+&lt;h2 id="sidecar-中的-iptables-流量路由">Sidecar 中的 iptables 流量路由&lt;/h2>
+&lt;p>Sidecar 中的流量可以划分为以下几类：&lt;/p>
+&lt;ul>
+&lt;li>远程服务访问本地服务：Remote Pod -&amp;gt; Local Pod&lt;/li>
+&lt;li>本地服务访问远程服务：Local Pod -&amp;gt; Remote Pod&lt;/li>
+&lt;li>Prometheus 抓取本地服务的 metrics：Prometheus -&amp;gt; Local Pod&lt;/li>
+&lt;li>本地 Pod 服务间的流量：Local Pod -&amp;gt; Local Pod&lt;/li>
+&lt;li>Envoy 内部的进程间 TCP 流量&lt;/li>
+&lt;li>Sidecar 到 Istiod 的流量&lt;/li>
+&lt;/ul>
+&lt;p>下面将依次解释每个场景下 Sidecar 内的 iptables 路由规则。&lt;/p>
+&lt;h2 id="类型一remote-pod---local-pod">类型一：Remote Pod -&amp;gt; Local Pod&lt;/h2>
+&lt;p>以下是远程服务、应用或客户端访问数据平面本地 Pod IP 的 iptables 规则。&lt;/p>
+&lt;p>Remote Pod -&amp;gt; &lt;code>RREROUTING&lt;/code> -&amp;gt; &lt;code>ISTIO_INBOUND&lt;/code> -&amp;gt; &lt;code>ISTIO_IN_REDIRECT&lt;/code> -&amp;gt; Envoy 15006（Inbound）-&amp;gt; &lt;code>OUTPUT&lt;/code> -&amp;gt; &lt;strong>&lt;code>ISTIO_OUTPUT&lt;/code> RULE 1&lt;/strong> -&amp;gt; &lt;code>POSTROUTING&lt;/code> -&amp;gt; Local Pod&lt;/p>
+&lt;p>我们看到流量只经过一次 Envoy 15006 Inbound 端口。这种场景下的 iptables 规则的示意图如下。&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145739.png" alt="">&lt;/p>
+&lt;h2 id="类型二local-pod---remote-pod">类型二：Local Pod -&amp;gt; Remote Pod&lt;/h2>
+&lt;p>以下是本地 Pod IP 访问远程服务经过的 iptables 规则。&lt;/p>
+&lt;p>Local Pod-&amp;gt; &lt;code>OUTPUT&lt;/code> -&amp;gt; &lt;strong>&lt;code>ISTIO_OUTPUT&lt;/code> RULE 9&lt;/strong> -&amp;gt; ISTIO_REDIRECT -&amp;gt; Envoy 15001（Outbound）-&amp;gt; &lt;code>OUTPUT&lt;/code> -&amp;gt; &lt;strong>&lt;code>ISTIO_OUTPUT&lt;/code> RULE 4&lt;/strong> -&amp;gt; &lt;code>POSTROUTING&lt;/code> -&amp;gt; Remote Pod&lt;/p>
+&lt;p>我们看到流量只经过 Envoy 15001 Outbound 端口。&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145841.png" alt="">&lt;/p>
+&lt;p>以上两种场景中的流量都只经过一次 Envoy，因为该 Pod 中只有发出或接受请求一种场景发生。&lt;/p>
+&lt;h2 id="类型三prometheus---local-pod">类型三：Prometheus -&amp;gt; Local Pod&lt;/h2>
+&lt;p>Prometheus 抓取数据平面 metrics 的流量不会也无须经过 Envoy 代理。&lt;/p>
+&lt;p>这些流量通过的 iptables 规则如下。&lt;/p>
+&lt;p>Prometheus-&amp;gt; &lt;code>RREROUTING&lt;/code> -&amp;gt; &lt;code>ISTIO_INBOUND&lt;/code>（对目的地为 15002、15090 端口流量将转到 &lt;code>INPUT&lt;/code>）-&amp;gt; &lt;code>INPUT&lt;/code> -&amp;gt; Local Pod&lt;/p>
+&lt;p>这种场景下的 iptables 规则的示意图如下。&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145903.png" alt="">&lt;/p>
+&lt;h2 id="类型四local-pod---local-pod">类型四：Local Pod -&amp;gt; Local Pod&lt;/h2>
+&lt;p>一个 Pod 可能同时存在两个或多个服务，如果 Local Pod 访问的服务也在该当前 Pod 上，流量会依次经过 Envoy 15001 和 Envoy 15006 端口最后到达本地 Pod 的服务端口上。&lt;/p>
+&lt;p>这些流量通过的 iptables 规则如下。&lt;/p>
+&lt;p>Local Pod-&amp;gt; &lt;code>OUTPUT&lt;/code> -&amp;gt; &lt;strong>&lt;code>ISTIO_OUTPUT&lt;/code> RULE 9&lt;/strong> -&amp;gt; &lt;code>ISTIO_REDIRECT&lt;/code> -&amp;gt; Envoy 15001（Outbound）-&amp;gt; &lt;code>OUTPUT&lt;/code> -&amp;gt; &lt;strong>&lt;code>ISTIO_OUTPUT&lt;/code> RULE 2&lt;/strong> -&amp;gt; &lt;code>ISTIO_IN_REDIRECT&lt;/code> -&amp;gt; Envoy 15006（Inbound）-&amp;gt; &lt;code>OUTPUT&lt;/code> -&amp;gt; &lt;strong>&lt;code>ISTIO_OUTPUT&lt;/code> RULE 1&lt;/strong> -&amp;gt; &lt;code>POSTROUTING&lt;/code> -&amp;gt; Local Pod&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145924.png" alt="">&lt;/p>
+&lt;h2 id="类型五envoy-内部的进程间-tcp-流量">类型五：Envoy 内部的进程间 TCP 流量&lt;/h2>
+&lt;p>Envoy 内部进程的 UID 和 GID 为 1337，它们之间的流量将使用 lo 网卡，使用 localhost 域名来通信。&lt;/p>
+&lt;p>这些流量通过的 iptables 规则如下。&lt;/p>
+&lt;p>Envoy 进程（Localhost） -&amp;gt; &lt;code>OUTPUT&lt;/code> -&amp;gt; &lt;strong>&lt;code>ISTIO_OUTPUT&lt;/code> RULE 8&lt;/strong> -&amp;gt; &lt;code>POSTROUTING&lt;/code> -&amp;gt; Envoy 进程（Localhost）&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913145940.png" alt="">&lt;/p>
+&lt;h2 id="类型六sidecar-到-istiod-的流量">类型六：Sidecar 到 Istiod 的流量&lt;/h2>
+&lt;p>Sidecar 需要访问 Istiod 以同步配置，&lt;code>pilot-agent&lt;/code> 进程会向 Istiod 发送请求，以同步配置。&lt;/p>
+&lt;p>这些流量通过的 iptables 规则如下。&lt;/p>
+&lt;p>&lt;code>pilot-agent&lt;/code> 进程 -&amp;gt; &lt;code>OUTPUT&lt;/code> -&amp;gt; &lt;strong>&lt;code>Istio_OUTPUT&lt;/code> RULE 9&lt;/strong> -&amp;gt; Envoy 15001 (Outbound Handler) -&amp;gt; OUTPUT -&amp;gt; &lt;strong>&lt;code>ISTIO_OUTPUT&lt;/code> RULE 4&lt;/strong> -&amp;gt; &lt;code>POSTROUTING&lt;/code> -&amp;gt; Istiod&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913150048.png" alt="">&lt;/p>
+&lt;h2 id="总结">总结&lt;/h2>
+&lt;p>Istio 注入在 Pod 内或虚拟机中安装的所有 sidecar 代理组成了服务网格的数据平面，也是 Istio 的主要工作负载所在地，通过 &lt;a href="https://sreionet.github.io/posts/fe0ba1/">Istio 中的透明流量劫持&lt;/a> 及这篇博客，相信你一定对 sidecar 代理中的流量有了一个深刻的了解，但这还只是管中窥豹，略见一斑，在我的&lt;a href="https://sreionet.github.io/posts/6be15f/">下一篇博客&lt;/a>中，我将带你了解 Envoy 中各个组件的端口及其功能，这样可以让我们对 Istio 中的流量有一个更全面的了解。&lt;/p></description></item></channel></rss>

@@ -1,0 +1,196 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>云原生技术圈 – hugo</title><link>https://sreionet.github.io/tags/hugo/</link><description>Recent content in hugo on 云原生技术圈</description><generator>Hugo -- gohugo.io</generator><language>zh-CN</language><lastBuildDate>Fri, 29 Jul 2022 10:55:52 +0800</lastBuildDate><atom:link href="https://sreionet.github.io/tags/hugo/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: 02 Hugo Github Action自动部署静态博客</title><link>https://sreionet.github.io/docs/hugo/02-hugo-github-action%E8%87%AA%E5%8A%A8%E9%83%A8%E7%BD%B2/</link><pubDate>Fri, 29 Jul 2022 10:55:52 +0800</pubDate><guid>https://sreionet.github.io/docs/hugo/02-hugo-github-action%E8%87%AA%E5%8A%A8%E9%83%A8%E7%BD%B2/</guid><description>
+&lt;h2 id="一前言">一、前言&lt;/h2>
+&lt;p>使用 Hugo 有一些时间了，把内容上传到 GitHub Pages，从一开始的手动操作，到脚本操作，终于来到了自动化部署。&lt;/p>
+&lt;p>&lt;strong>部署的流程&lt;/strong>：&lt;/p>
+&lt;p>&lt;img src="https://pic4.zhimg.com/v2-1a4d685c2b62ac90419865630a733b47_r.jpg" alt="">&lt;/p>
+&lt;p>流程&lt;/p>
+&lt;p>本地通过 Hugo 命令创建文件，编写博客，编写好后把改变的内容上传到 GitHub 博客源文件仓库。通过 GitHub Action 自动触发脚本构建，然后把静态文件通过 GitHub Deploy 到博客仓库。&lt;/p>
+&lt;h2 id="二具体步骤">二、具体步骤&lt;/h2>
+&lt;h3 id="21-创建两个仓库">2.1 创建两个仓库&lt;/h3>
+&lt;ul>
+&lt;li>创建博客源仓库&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic1.zhimg.com/v2-426aa6d53e1881ecaa9116555348fad8_r.jpg" alt="">&lt;/p>
+&lt;ul>
+&lt;li>创建博客静态资源仓库&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic3.zhimg.com/v2-52d9007ead86ecb210a8ea32341bab5a_r.jpg" alt="">&lt;/p>
+&lt;h3 id="22-创建-ssh">2.2 创建 SSH&lt;/h3>
+&lt;p>需要生成一对 SSH Key，生成的 Public Key 和 Private Key 都会用到。&lt;/p>
+&lt;p>ssh-keygen -t rsa -b 4096 -C &amp;ldquo;&lt;a href="mailto:ironcity.hz@gmail.com">ironcity.hz@gmail.com&lt;/a>&amp;rdquo; Generating public/private rsa key pair. Enter file in which to save the key (/Users/tc/.ssh/id_rsa):&lt;/p>
+&lt;p>输入你需要指定的文件，比如 &lt;code>/Users/tc/.ssh/id_rsa_hugo_deploy&lt;/code>&lt;/p>
+&lt;blockquote>
+&lt;p>只是为了防止覆盖之前创建的默认文件&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="22-配置博客静态资源仓库的-deploy-keys">2.2 配置博客静态资源仓库的 Deploy Keys&lt;/h3>
+&lt;ul>
+&lt;li>添加公钥到 &lt;a href="http://funnycode-org.github.io">http://funnycode-org.github.io&lt;/a> 仓库的 Deploy Keys&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic3.zhimg.com/v2-84e2a55169ec5cc51e443b37edbab3f6_r.jpg" alt="">&lt;/p>
+&lt;ul>
+&lt;li>添加后&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic4.zhimg.com/v2-63bf4907ad71b7a519de7370115e8a77_r.jpg" alt="">&lt;/p>
+&lt;h3 id="23-配置博客源内容仓库的-secrets">2.3 配置博客源内容仓库的 Secrets&lt;/h3>
+&lt;ul>
+&lt;li>添加私钥到 blog 仓库的 Secrets&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic4.zhimg.com/v2-ae16f3078624ce0aed4f3bf9c0960a7b_r.jpg" alt="">&lt;/p>
+&lt;ul>
+&lt;li>添加后&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic3.zhimg.com/v2-1b7c067ff8638e517479a794fbb5b7be_r.jpg" alt="">&lt;/p>
+&lt;blockquote>
+&lt;p>注意这个 secrets 的名称&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="24-编写博客">2.4 编写博客&lt;/h3>
+&lt;ul>
+&lt;li>克隆 blog 项目到本地&lt;/li>
+&lt;/ul>
+&lt;p># 选取一个目录 cd ~/Desktop/ # 克隆 source 仓库 git clone &lt;a href="mailto:git@github.com">git@github.com&lt;/a>:funnycode-org/blog.git # 进入仓库 cd blog&lt;/p>
+&lt;ul>
+&lt;li>创建 hugo 博客&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span># 创建博客，多语言模式
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>hugo new /posts/[blog-name]/index.zh-cn.md
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span># 运行预览效果
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>hugo serve -D
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img src="https://pic1.zhimg.com/v2-54b868c70a19e00945955c8778203e8c_r.jpg" alt="">&lt;/p>
+&lt;p>如果没有什么问题就可以准备提交代码了&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>git add .
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git commit -m &amp;#34;update commit&amp;#34;
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git push -u origin master
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="25-github-actions-说明">2.5 GitHub Actions 说明&lt;/h3>
+&lt;p>Actions 内容：&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>name: Deploy Hugo Site to Github Pages on Master Branch
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>on:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> push:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> branches:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - master
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>jobs:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> build-deploy:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> runs-on: ubuntu-18.04
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> steps:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - uses: actions/checkout@v2
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> with:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> submodules: true # Fetch Hugo themes (true OR recursive)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> fetch-depth: 0 # Fetch all history for .GitInfo and .Lastmod
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - name: Setup Hugo
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> uses: peaceiris/actions-hugo@v2
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> with:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> hugo-version: &amp;#39;0.76.0&amp;#39;
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> # extended: true
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - name: Build
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> run: hugo --minify
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - name: Deploy
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> uses: peaceiris/actions-gh-pages@v3
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> with:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> external_repository: funnycode-org/funnycode-org.github.io # remote branch
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> publish_dir: &amp;#34;./docs&amp;#34;
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> cname: blog.funnycode.org.cn
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> keep_files: false # remove existing files
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> publish_branch: docs # deploying branch
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> commit_message: ${{ github.event.head_commit.message }}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
+&lt;p>注意点：&lt;/p>
+&lt;/blockquote>
+&lt;ul>
+&lt;li>publish_dir 指定发布的目录，&lt;code>./docs&lt;/code> 指 &lt;code>blog&lt;/code> 项目下的 &lt;code>docs&lt;/code> 目录下的内容会被发布&lt;/li>
+&lt;li>publish_branch 发布到 &lt;code>funnycode-org.github.io&lt;/code> 项目的 &lt;code>docs&lt;/code> 分支&lt;/li>
+&lt;li>secrets.ACTIONS_DEPLOY_KEY 的 ACTIONS_DEPLOY_KEY 则是上面设置 Private Key 的变量名&lt;/li>
+&lt;li>cname 必须要配置好，和下文提到的 Setting 里面配置图对应&lt;/li>
+&lt;/ul>
+&lt;h3 id="27-httpfunnycode-orggithubiohttpfunnycode-orggithubio-配置">2.7 &lt;a href="http://funnycode-org.github.io">http://funnycode-org.github.io&lt;/a> 配置&lt;/h3>
+&lt;ul>
+&lt;li>配置 Setting&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic1.zhimg.com/v2-41f002170a47016d44225629e06dc9e4_r.jpg" alt="">&lt;/p>
+&lt;ul>
+&lt;li>验证访问&lt;/li>
+&lt;/ul>
+&lt;p>输入 &lt;a href="https://blog.funnycode.org.cn/">https://blog.funnycode.org.cn&lt;/a>，效果：&lt;/p>
+&lt;p>&lt;img src="https://pic4.zhimg.com/v2-c6a311552829f7dc822bcf253bca631f_r.jpg" alt="">&lt;/p></description></item><item><title>Docs: 01 Hugo使用手册</title><link>https://sreionet.github.io/docs/hugo/01-hugo%E4%BD%BF%E7%94%A8%E6%89%8B%E5%86%8C/</link><pubDate>Fri, 29 Jul 2022 10:54:52 +0800</pubDate><guid>https://sreionet.github.io/docs/hugo/01-hugo%E4%BD%BF%E7%94%A8%E6%89%8B%E5%86%8C/</guid><description>
+&lt;h2 id="前言">前言&lt;/h2>
+&lt;p>两年前用Hexo搭建博客，但是因为各种配置问题没有继续跟进，之后就一直在&lt;a href="https://www.jianshu.com/u/150c4ef48860">简书&lt;/a>写的博客。恰逢看到新的博客生成工具&lt;a href="https://links.jianshu.com/go?to=https%3A%2F%2Fgohugo.io%2F">Hugo&lt;/a>，所以重新搭建了一个个人博客网站，通过Github Pages，域名重定向来实现线上访问。本文介绍的就是如何使用Hugo搭建个人博客网站的过程。实际效果可以访问&lt;a href="https://links.jianshu.com/go?to=https%3A%2F%2Fdreamqyq.github.io%2F">我的博客&lt;/a>。&lt;/p>
+&lt;h2 id="hugo简介">Hugo简介&lt;/h2>
+&lt;p>不同与Hexo是用JavaScript实现的，Hugo是由Go语言实现的静态网站生成器。简单、易用、高效、易扩展、快速部署。从我的个人体验来讲，Hugo比Hexo速度更快，而且不用依赖一大堆东西，一个二进制文件就可以搞定。&lt;/p>
+&lt;blockquote>
+&lt;p>The world’s fastest framework for building websites. Hugo is one of the most popular open-source static site generators. With its amazing speed and flexibility, Hugo makes building websites fun again.&lt;/p>
+&lt;/blockquote>
+&lt;p>这是&lt;a href="https://links.jianshu.com/go?to=https%3A%2F%2Fgohugo.io%2F">Hugo&lt;/a>的主页对自己的介绍，看这嚣张的简介，&lt;strong>“全球最快的网站建设框架”&lt;/strong>，就不禁想让人来体验一把。&lt;/p>
+&lt;p>那么就开始吧！&lt;/p>
+&lt;h2 id="hugo快速开始">Hugo快速开始&lt;/h2>
+&lt;p>&lt;a href="https://links.jianshu.com/go?to=https%3A%2F%2Fgohugo.io%2F">Hugo&lt;/a>的首页有一个显眼的按钮【Quick Start】，点击它，按步骤完成即可&lt;/p>
+&lt;p>&lt;img src="//upload-images.jianshu.io/upload_images/11827773-c112f4a37bf56946.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/846/format/webp" alt="">&lt;/p>
+&lt;h3 id="hugo安装">Hugo安装&lt;/h3>
+&lt;h4 id="mac">Mac&lt;/h4>
+&lt;pre tabindex="0">&lt;code class="language-undefined" data-lang="undefined">brew install hugo
+hugo version
+&lt;/code>&lt;/pre>&lt;h4 id="windows">Windows&lt;/h4>
+&lt;p>去&lt;a href="https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2Fgohugoio%2Fhugo%2Freleases">Hugo releases页面&lt;/a>下载&lt;code>hugo_xxx_Windows-64bit.zip&lt;/code> 将它解压到一个安全的目录，然后把这个目录添加到环境变量PATH中，重启终端，运行&lt;code>hugo version&lt;/code>，正确展示了版本号就说明安装成功。&lt;/p>
+&lt;h3 id="快速搭建博客">快速搭建博客&lt;/h3>
+&lt;p>可以进入&lt;a href="https://links.jianshu.com/go?to=https%3A%2F%2Fgohugo.io%2F">Hugo&lt;/a>首页，点击Quick Start快速开始，从Step 2开始抄代码，直到Step 7结束。（Step 1是安装Hugo，我们在上文已经介绍了。）&lt;/p>
+&lt;p>也可以根据接下来的步骤依次执行：&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>创建一个新的项目（quickstart 是项目名称，可以改成你想要的名字）&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-cpp" data-lang="cpp">&lt;span style="display:flex;">&lt;span>hugo &lt;span style="color:#66d9ef">new&lt;/span> site quickstart
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>添加一个主题（这里会安装一个默认主题ananke）&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>cd quickstart
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git init
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git submodule add https://github.com/budparr/gohugo-theme-ananke.git themes/ananke
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>echo &lt;span style="color:#e6db74">&amp;#39;theme = &amp;#34;ananke&amp;#34;&amp;#39;&lt;/span> &amp;gt;&amp;gt; config.toml
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>创建一个新的博客&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-cpp" data-lang="cpp">&lt;span style="display:flex;">&lt;span>hugo &lt;span style="color:#66d9ef">new&lt;/span> posts&lt;span style="color:#f92672">/&lt;/span>my&lt;span style="color:#f92672">-&lt;/span>first&lt;span style="color:#f92672">-&lt;/span>post.md
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>注意：博客文件开头的 &lt;code>draft: false&lt;/code>要改成true，否则改博客不会被生成到public目录中。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>开启 Hugo Serve，用于本地预览&lt;/p>
+&lt;pre tabindex="0">&lt;code class="language-undefined" data-lang="undefined">hugo server -D
+&lt;/code>&lt;/pre>&lt;/li>
+&lt;li>
+&lt;p>定制主题，如果对步骤2安装的默认主题不满意，可以自己选择一个主题进行替换&lt;/p>
+&lt;ul>
+&lt;li>重复步骤2，把你想要替换的主题GitHub路径替换一下就好，然后在配置文件&lt;code>config.toml&lt;/code>里修改下面的配置&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>baseURL &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#e6db74">&amp;#34;https://example.org/&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>languageCode &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#e6db74">&amp;#34;en-us&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>title &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#e6db74">&amp;#34;My New Hugo Site&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>theme &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#e6db74">&amp;#34;ananke&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>baseURL 改成你的博客主页地址&lt;/li>
+&lt;li>languageCode 如果是中文博客，可以改成&lt;code>zh-CN&lt;/code>&lt;/li>
+&lt;li>title 即博客名称&lt;/li>
+&lt;li>&lt;strong>theme&lt;/strong> 这里是重点，把theme的值改成你替换的主题的名称，然后主题就生效啦。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>构建静态页面&lt;/p>
+&lt;pre tabindex="0">&lt;code class="language-undefined" data-lang="undefined">hugo -D
+&lt;/code>&lt;/pre>&lt;p>这个命令执行以后会生成一个&lt;code>./public&lt;/code>的目录，将这个目录上传到GitHub，创建一个名为&lt;code>dreamqyq.github.io&lt;/code>的项目（dreamqyq 这里替换成你的GitHub账号名），然后使用GitHub Pages就可以让别人来看你的博客啦。&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;h3 id="hugo常用命令">Hugo常用命令&lt;/h3>
+&lt;ul>
+&lt;li>&lt;code>hugo&lt;/code> 构建静态文件&lt;/li>
+&lt;li>&lt;code>hugo server -D&lt;/code> 本地预览&lt;/li>
+&lt;li>&lt;code>hugo new blogName.md&lt;/code> 生成一个新的博客&lt;/li>
+&lt;/ul>
+&lt;h2 id="主题">主题&lt;/h2>
+&lt;p>我的个人博客网站的主题使用了&lt;a href="https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2Fdreamqyq%2Fmaupassant-hugo">maupassant&lt;/a> （我fork了原项目并做了一点修改，支持了博客目录显示二级目录）主题，在这个主题的Github主页README中有详细的配置方法，这里就不再赘述。如果喜欢的话可以参考教程进行配置。&lt;/p>
+&lt;h2 id="遇到的问题">遇到的问题&lt;/h2>
+&lt;p>在配置教程的时候遇到了一个问题，上文中提到的配置&lt;code>bashURL&lt;/code>应该是个人博客网站的地址，由于我做了Gihubub Pages域名转发，使用了我自己的域名 &lt;code>https://enochqin.xyz&lt;/code>（域名已弃用，&lt;a href="https://links.jianshu.com/go?to=https%3A%2F%2Fdreamqyq.github.io%2F">目前的博客&lt;/a>直接使用的GitHub Pages）。在最开始配置的时候，写成了&lt;code>https://www.enochqin.xyz&lt;/code>，导致博客的很多功能各种出错，后来才意识到，我的域名没有做www的映射，导致其实&lt;code>https://www.enochqin.xyz&lt;/code>这个网址是不能访问的。&lt;/p>
+&lt;p>没有www和带www的域名是被看做两个不同的域名的。一般我们都会将两个域名设置指向相同的一个网站。但是实际上带www的和不带www的域名完全可以设置指向两个不同的服务器。这样你访问带www和不带www的地址，看到的是两个不同的网站了。&lt;/p>
+&lt;p>（完）&lt;/p></description></item></channel></rss>

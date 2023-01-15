@@ -1,0 +1,119 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>云原生技术圈 – GithubAction</title><link>https://sreionet.github.io/tags/githubaction/</link><description>Recent content in GithubAction on 云原生技术圈</description><generator>Hugo -- gohugo.io</generator><language>zh-CN</language><lastBuildDate>Fri, 29 Jul 2022 10:55:52 +0800</lastBuildDate><atom:link href="https://sreionet.github.io/tags/githubaction/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: 02 Hugo Github Action自动部署静态博客</title><link>https://sreionet.github.io/docs/hugo/02-hugo-github-action%E8%87%AA%E5%8A%A8%E9%83%A8%E7%BD%B2/</link><pubDate>Fri, 29 Jul 2022 10:55:52 +0800</pubDate><guid>https://sreionet.github.io/docs/hugo/02-hugo-github-action%E8%87%AA%E5%8A%A8%E9%83%A8%E7%BD%B2/</guid><description>
+&lt;h2 id="一前言">一、前言&lt;/h2>
+&lt;p>使用 Hugo 有一些时间了，把内容上传到 GitHub Pages，从一开始的手动操作，到脚本操作，终于来到了自动化部署。&lt;/p>
+&lt;p>&lt;strong>部署的流程&lt;/strong>：&lt;/p>
+&lt;p>&lt;img src="https://pic4.zhimg.com/v2-1a4d685c2b62ac90419865630a733b47_r.jpg" alt="">&lt;/p>
+&lt;p>流程&lt;/p>
+&lt;p>本地通过 Hugo 命令创建文件，编写博客，编写好后把改变的内容上传到 GitHub 博客源文件仓库。通过 GitHub Action 自动触发脚本构建，然后把静态文件通过 GitHub Deploy 到博客仓库。&lt;/p>
+&lt;h2 id="二具体步骤">二、具体步骤&lt;/h2>
+&lt;h3 id="21-创建两个仓库">2.1 创建两个仓库&lt;/h3>
+&lt;ul>
+&lt;li>创建博客源仓库&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic1.zhimg.com/v2-426aa6d53e1881ecaa9116555348fad8_r.jpg" alt="">&lt;/p>
+&lt;ul>
+&lt;li>创建博客静态资源仓库&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic3.zhimg.com/v2-52d9007ead86ecb210a8ea32341bab5a_r.jpg" alt="">&lt;/p>
+&lt;h3 id="22-创建-ssh">2.2 创建 SSH&lt;/h3>
+&lt;p>需要生成一对 SSH Key，生成的 Public Key 和 Private Key 都会用到。&lt;/p>
+&lt;p>ssh-keygen -t rsa -b 4096 -C &amp;ldquo;&lt;a href="mailto:ironcity.hz@gmail.com">ironcity.hz@gmail.com&lt;/a>&amp;rdquo; Generating public/private rsa key pair. Enter file in which to save the key (/Users/tc/.ssh/id_rsa):&lt;/p>
+&lt;p>输入你需要指定的文件，比如 &lt;code>/Users/tc/.ssh/id_rsa_hugo_deploy&lt;/code>&lt;/p>
+&lt;blockquote>
+&lt;p>只是为了防止覆盖之前创建的默认文件&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="22-配置博客静态资源仓库的-deploy-keys">2.2 配置博客静态资源仓库的 Deploy Keys&lt;/h3>
+&lt;ul>
+&lt;li>添加公钥到 &lt;a href="http://funnycode-org.github.io">http://funnycode-org.github.io&lt;/a> 仓库的 Deploy Keys&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic3.zhimg.com/v2-84e2a55169ec5cc51e443b37edbab3f6_r.jpg" alt="">&lt;/p>
+&lt;ul>
+&lt;li>添加后&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic4.zhimg.com/v2-63bf4907ad71b7a519de7370115e8a77_r.jpg" alt="">&lt;/p>
+&lt;h3 id="23-配置博客源内容仓库的-secrets">2.3 配置博客源内容仓库的 Secrets&lt;/h3>
+&lt;ul>
+&lt;li>添加私钥到 blog 仓库的 Secrets&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic4.zhimg.com/v2-ae16f3078624ce0aed4f3bf9c0960a7b_r.jpg" alt="">&lt;/p>
+&lt;ul>
+&lt;li>添加后&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic3.zhimg.com/v2-1b7c067ff8638e517479a794fbb5b7be_r.jpg" alt="">&lt;/p>
+&lt;blockquote>
+&lt;p>注意这个 secrets 的名称&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="24-编写博客">2.4 编写博客&lt;/h3>
+&lt;ul>
+&lt;li>克隆 blog 项目到本地&lt;/li>
+&lt;/ul>
+&lt;p># 选取一个目录 cd ~/Desktop/ # 克隆 source 仓库 git clone &lt;a href="mailto:git@github.com">git@github.com&lt;/a>:funnycode-org/blog.git # 进入仓库 cd blog&lt;/p>
+&lt;ul>
+&lt;li>创建 hugo 博客&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span># 创建博客，多语言模式
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>hugo new /posts/[blog-name]/index.zh-cn.md
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span># 运行预览效果
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>hugo serve -D
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img src="https://pic1.zhimg.com/v2-54b868c70a19e00945955c8778203e8c_r.jpg" alt="">&lt;/p>
+&lt;p>如果没有什么问题就可以准备提交代码了&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>git add .
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git commit -m &amp;#34;update commit&amp;#34;
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git push -u origin master
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="25-github-actions-说明">2.5 GitHub Actions 说明&lt;/h3>
+&lt;p>Actions 内容：&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>name: Deploy Hugo Site to Github Pages on Master Branch
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>on:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> push:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> branches:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - master
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>jobs:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> build-deploy:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> runs-on: ubuntu-18.04
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> steps:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - uses: actions/checkout@v2
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> with:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> submodules: true # Fetch Hugo themes (true OR recursive)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> fetch-depth: 0 # Fetch all history for .GitInfo and .Lastmod
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - name: Setup Hugo
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> uses: peaceiris/actions-hugo@v2
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> with:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> hugo-version: &amp;#39;0.76.0&amp;#39;
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> # extended: true
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - name: Build
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> run: hugo --minify
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> - name: Deploy
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> uses: peaceiris/actions-gh-pages@v3
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> with:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> external_repository: funnycode-org/funnycode-org.github.io # remote branch
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> publish_dir: &amp;#34;./docs&amp;#34;
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> cname: blog.funnycode.org.cn
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> keep_files: false # remove existing files
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> publish_branch: docs # deploying branch
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> commit_message: ${{ github.event.head_commit.message }}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
+&lt;p>注意点：&lt;/p>
+&lt;/blockquote>
+&lt;ul>
+&lt;li>publish_dir 指定发布的目录，&lt;code>./docs&lt;/code> 指 &lt;code>blog&lt;/code> 项目下的 &lt;code>docs&lt;/code> 目录下的内容会被发布&lt;/li>
+&lt;li>publish_branch 发布到 &lt;code>funnycode-org.github.io&lt;/code> 项目的 &lt;code>docs&lt;/code> 分支&lt;/li>
+&lt;li>secrets.ACTIONS_DEPLOY_KEY 的 ACTIONS_DEPLOY_KEY 则是上面设置 Private Key 的变量名&lt;/li>
+&lt;li>cname 必须要配置好，和下文提到的 Setting 里面配置图对应&lt;/li>
+&lt;/ul>
+&lt;h3 id="27-httpfunnycode-orggithubiohttpfunnycode-orggithubio-配置">2.7 &lt;a href="http://funnycode-org.github.io">http://funnycode-org.github.io&lt;/a> 配置&lt;/h3>
+&lt;ul>
+&lt;li>配置 Setting&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://pic1.zhimg.com/v2-41f002170a47016d44225629e06dc9e4_r.jpg" alt="">&lt;/p>
+&lt;ul>
+&lt;li>验证访问&lt;/li>
+&lt;/ul>
+&lt;p>输入 &lt;a href="https://blog.funnycode.org.cn/">https://blog.funnycode.org.cn&lt;/a>，效果：&lt;/p>
+&lt;p>&lt;img src="https://pic4.zhimg.com/v2-c6a311552829f7dc822bcf253bca631f_r.jpg" alt="">&lt;/p></description></item></channel></rss>

@@ -1,0 +1,105 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>云原生技术圈 – iptable</title><link>https://sreionet.github.io/tags/iptable/</link><description>Recent content in iptable on 云原生技术圈</description><generator>Hugo -- gohugo.io</generator><language>zh-CN</language><lastBuildDate>Sat, 10 Sep 2022 14:30:05 +0800</lastBuildDate><atom:link href="https://sreionet.github.io/tags/iptable/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: 理解Iptable</title><link>https://sreionet.github.io/blog/2022/09/10/b7e1eb/</link><pubDate>Sat, 10 Sep 2022 14:30:05 +0800</pubDate><guid>https://sreionet.github.io/blog/2022/09/10/b7e1eb/</guid><description>
+&lt;p>iptables 作为 Linux 内核中的重要功能，有着广泛的应用，在 Istio 中默认就是利用 iptables 做透明流量劫持的。理解 iptables，对于我们理解 Istio 的运作有十分重要的作用。本文将为大家简单介绍下 iptbles。&lt;/p>
+&lt;h2 id="iptables-简介">iptables 简介&lt;/h2>
+&lt;p>&lt;code>iptables&lt;/code> 是 Linux 内核中的防火墙软件 netfilter 的管理工具，位于用户空间，同时也是 netfilter 的一部分。Netfilter 位于内核空间，不仅有网络地址转换的功能，也具备数据包内容修改、以及数据包过滤等防火墙功能。&lt;/p>
+&lt;p>在了解 Init 容器初始化的 iptables 之前，我们先来了解下 iptables 和规则配置。&lt;/p>
+&lt;p>下图展示了 iptables 调用链。&lt;/p>
+&lt;p>&lt;img src="https://raw.githubusercontent.com/kbsonlong/notes_statics/master/images/20220913143117.png" alt="">&lt;/p>
+&lt;h2 id="iptables-中的表">iptables 中的表&lt;/h2>
+&lt;p>Init 容器中使用的的 iptables 版本是 &lt;code>v1.6.0&lt;/code>，共包含 5 张表：&lt;/p>
+&lt;ol>
+&lt;li>&lt;code>raw&lt;/code> 用于配置数据包，&lt;code>raw&lt;/code> 中的数据包不会被系统跟踪。&lt;/li>
+&lt;li>&lt;code>filter&lt;/code> 是用于存放所有与防火墙相关操作的默认表。&lt;/li>
+&lt;li>&lt;code>nat&lt;/code> 用于 &lt;a href="https://en.wikipedia.org/wiki/Network_address_translation">网络地址转换&lt;/a>（例如：端口转发）。&lt;/li>
+&lt;li>&lt;code>mangle&lt;/code> 用于对特定数据包的修改（参考&lt;a href="https://en.wikipedia.org/wiki/Mangled_packet">损坏数据包&lt;/a>）。&lt;/li>
+&lt;li>&lt;code>security&lt;/code> 用于&lt;a href="https://wiki.archlinux.org/index.php/Security#Mandatory_access_control">强制访问控制&lt;/a> 网络规则。&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>注&lt;/strong>：在本示例中只用到了 &lt;code>nat&lt;/code> 表。&lt;/p>
+&lt;p>不同的表中的具有的链类型如下表所示：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>规则名称&lt;/th>
+&lt;th>raw&lt;/th>
+&lt;th>filter&lt;/th>
+&lt;th>nat&lt;/th>
+&lt;th>mangle&lt;/th>
+&lt;th>security&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>PREROUTING&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>INPUT&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>OUTPUT&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>POSTROUTING&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FORWARD&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;td>✓&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="理解-iptables-规则">理解 iptables 规则&lt;/h2>
+&lt;p>查看 &lt;code>istio-proxy&lt;/code> 容器中的默认的 iptables 规则，默认查看的是 filter 表中的规则。&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>$ iptables -L -v
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Chain INPUT &lt;span style="color:#f92672">(&lt;/span>policy ACCEPT 350K packets, 63M bytes&lt;span style="color:#f92672">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> pkts bytes target prot opt in out source destination
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Chain FORWARD &lt;span style="color:#f92672">(&lt;/span>policy ACCEPT &lt;span style="color:#ae81ff">0&lt;/span> packets, &lt;span style="color:#ae81ff">0&lt;/span> bytes&lt;span style="color:#f92672">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> pkts bytes target prot opt in out source destination
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Chain OUTPUT &lt;span style="color:#f92672">(&lt;/span>policy ACCEPT 18M packets, 1916M bytes&lt;span style="color:#f92672">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> pkts bytes target prot opt in out source destination
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>我们看到三个默认的链，分别是 INPUT、FORWARD 和 OUTPUT，每个链中的第一行输出表示链名称（在本例中为INPUT/FORWARD/OUTPUT），后跟默认策略（ACCEPT）。&lt;/p>
+&lt;p>每条链中都可以添加多条规则，规则是按照顺序从前到后执行的。我们来看下规则的表头定义。&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>pkts&lt;/strong>：处理过的匹配的报文数量&lt;/li>
+&lt;li>&lt;strong>bytes&lt;/strong>：累计处理的报文大小（字节数）&lt;/li>
+&lt;li>&lt;strong>target&lt;/strong>：如果报文与规则匹配，指定目标就会被执行。&lt;/li>
+&lt;li>&lt;strong>prot&lt;/strong>：协议，例如 &lt;code>tdp&lt;/code>、&lt;code>udp&lt;/code>、&lt;code>icmp&lt;/code> 和 &lt;code>all&lt;/code>。&lt;/li>
+&lt;li>&lt;strong>opt&lt;/strong>：很少使用，这一列用于显示 IP 选项。&lt;/li>
+&lt;li>&lt;strong>in&lt;/strong>：入站网卡。&lt;/li>
+&lt;li>&lt;strong>out&lt;/strong>：出站网卡。&lt;/li>
+&lt;li>&lt;strong>source&lt;/strong>：流量的源 IP 地址或子网，或者是 &lt;code>anywhere&lt;/code>。&lt;/li>
+&lt;li>&lt;strong>destination&lt;/strong>：流量的目的地 IP 地址或子网，或者是 &lt;code>anywhere&lt;/code>。&lt;/li>
+&lt;/ul>
+&lt;p>还有一列没有表头，显示在最后，表示规则的选项，作为规则的扩展匹配条件，用来补充前面的几列中的配置。&lt;code>prot&lt;/code>、&lt;code>opt&lt;/code>、&lt;code>in&lt;/code>、&lt;code>out&lt;/code>、&lt;code>source&lt;/code> 和 &lt;code>destination&lt;/code> 和显示在 &lt;code>destination&lt;/code> 后面的没有表头的一列扩展条件共同组成匹配规则。当流量匹配这些规则后就会执行 &lt;code>target&lt;/code>。&lt;/p>
+&lt;p>&lt;strong>target 支持的类型&lt;/strong>&lt;/p>
+&lt;p>&lt;code>target&lt;/code> 类型包括 ACCEPT&lt;code>、REJECT&lt;/code>、&lt;code>DROP&lt;/code>、&lt;code>LOG&lt;/code> 、&lt;code>SNAT&lt;/code>、&lt;code>MASQUERADE&lt;/code>、&lt;code>DNAT&lt;/code>、&lt;code>REDIRECT&lt;/code>、&lt;code>RETURN&lt;/code> 或者跳转到其他规则等。只要执行到某一条链中只有按照顺序有一条规则匹配后就可以确定报文的去向了，除了 &lt;code>RETURN&lt;/code> 类型，类似编程语言中的 &lt;code>return&lt;/code> 语句，返回到它的调用点，继续执行下一条规则。&lt;code>target&lt;/code> 支持的配置详解请参考 &lt;a href="http://www.zsythink.net/archives/1199">iptables 详解（1）：iptables 概念&lt;/a>。&lt;/p>
+&lt;h2 id="总结">总结&lt;/h2>
+&lt;p>以上就是对 iptables 的简要介绍，你已经了解了 iptables 是怎样运行的，规则链及其执行顺序。&lt;/p>
+&lt;h2 id="参考">参考&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="https://jimmysong.io/blog/understanding-iptables/">阅读原文&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>

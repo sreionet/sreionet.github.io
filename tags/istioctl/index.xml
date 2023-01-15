@@ -1,0 +1,112 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>云原生技术圈 – istioctl</title><link>https://sreionet.github.io/tags/istioctl/</link><description>Recent content in istioctl on 云原生技术圈</description><generator>Hugo -- gohugo.io</generator><language>zh-CN</language><lastBuildDate>Thu, 12 Jan 2023 10:31:40 +0800</lastBuildDate><atom:link href="https://sreionet.github.io/tags/istioctl/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: istioctl工具使用指南</title><link>https://sreionet.github.io/blog/2023/01/12/istioctl%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97/</link><pubDate>Thu, 12 Jan 2023 10:31:40 +0800</pubDate><guid>https://sreionet.github.io/blog/2023/01/12/istioctl%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97/</guid><description>
+&lt;h3 id="网格预览">网格预览&lt;/h3>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># ./istioctl ps&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>NAME CLUSTER CDS LDS EDS RDS ISTIOD VERSION
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>test-1.istio-system NOT SENT NOT SENT NOT SENT NOT SENT istiod-66bd9d59d8-k6qzk 65536.65536.65536
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>test-1.istio-system NOT SENT NOT SENT NOT SENT NOT SENT istiod-66bd9d59d8-k6qzk 65536.65536.65536
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>istio-egressgateway-c5b57c584-rz9rw.istio-system Kubernetes SYNCED SYNCED SYNCED NOT SENT istiod-66bd9d59d8-k6qzk 1.13.4
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>istio-ingressgateway-7767c959b4-jkbgb.istio-system Kubernetes SYNCED SYNCED SYNCED NOT SENT istiod-66bd9d59d8-k6qzk 1.13.4
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mesh-demo-dubbo-consumer-test-rpzzh.pulsar-manager Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.14-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mesh-demo-dubbo-pv1111-test-rfmtg.pulsar-manager Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.14-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mesh-demo-dubbo-pv2-test-gjhwb.pulsar-manager Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.14-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mesh-demo-httpv1-test-8b7f5.pulsar-manager Kubernetes SYNCED SYNCED SYNCED SYNCED istiod-66bd9d59d8-k6qzk 1.14-dev
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mesh-demo-httpv2-test-qlkhb.pulsar-manager
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="检查-envoy-已加载的配置和-istiod-发送给它的配置有什么异同">检查 Envoy 已加载的配置和 Istiod 发送给它的配置有什么异同&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># ./istioctl proxy-status components-provider-sfkt-default-test-6gw8b.components-nacos&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Clusters Match
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Listeners Match
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Routes Match &lt;span style="color:#f92672">(&lt;/span>RDS last loaded at Thu, &lt;span style="color:#ae81ff">12&lt;/span> Jan &lt;span style="color:#ae81ff">2023&lt;/span> 09:50:37 CST&lt;span style="color:#f92672">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="查看代理envoy配置">查看代理(Envoy)配置&lt;/h3>
+&lt;h4 id="检索特定-pod-中-envoy-实例的集群配置的信息">检索特定 pod 中 Envoy 实例的集群配置的信息&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>istioctl proxy-config cluster &amp;lt;pod-name&amp;gt; &lt;span style="color:#f92672">[&lt;/span>flags&lt;span style="color:#f92672">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># istioctl pc c details-v1-7d88846999-lg849 --fqdn istio-egressgateway&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>SERVICE FQDN PORT SUBSET DIRECTION TYPE DESTINATION RULE
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>istio-egressgateway-lazyxds.istio-system.svc.cluster.local &lt;span style="color:#ae81ff">8080&lt;/span> - outbound EDS
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>istio-egressgateway.istio-system.svc.cluster.local &lt;span style="color:#ae81ff">80&lt;/span> - outbound EDS
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>istio-egressgateway.istio-system.svc.cluster.local &lt;span style="color:#ae81ff">443&lt;/span> - outbound EDS
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="检索特定-pod-中-envoy-实例的-bootstrap-配置的信息">检索特定 pod 中 Envoy 实例的 bootstrap 配置的信息&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>$ istioctl proxy-config bootstrap &amp;lt;pod-name&amp;gt; &lt;span style="color:#f92672">[&lt;/span>flags&lt;span style="color:#f92672">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># istioctl pc bootstrap details-v1-7d88846999-lg849&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;bootstrap&amp;#34;&lt;/span>: &lt;span style="color:#f92672">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;node&amp;#34;&lt;/span>: &lt;span style="color:#f92672">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;id&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;sidecar~10.244.6.15~details-v1-7d88846999-lg849.default~default.svc.cluster.local&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;cluster&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;details.default&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;metadata&amp;#34;&lt;/span>: &lt;span style="color:#f92672">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;ANNOTATIONS&amp;#34;&lt;/span>: &lt;span style="color:#f92672">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;cni.projectcalico.org/podIP&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;10.244.6.15/32&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;kubectl.kubernetes.io/default-container&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;details&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;kubectl.kubernetes.io/default-logs-container&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;details&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;kubernetes.io/config.seen&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;2023-01-04T11:58:05.195509813+08:00&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;kubernetes.io/config.source&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;api&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;prometheus.io/path&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;/stats/prometheus&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;prometheus.io/port&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;15020&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;prometheus.io/scrape&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;true&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;sidecar.istio.io/status&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;{\&amp;#34;initContainers\&amp;#34;:[\&amp;#34;istio-init\&amp;#34;],\&amp;#34;containers\&amp;#34;:[\&amp;#34;istio-proxy\&amp;#34;],\&amp;#34;volumes\&amp;#34;:[\&amp;#34;workload-socket\&amp;#34;,\&amp;#34;credential-socket\&amp;#34;,\&amp;#34;workload-certs\&amp;#34;,\&amp;#34;istio-envoy\&amp;#34;,\&amp;#34;istio-data\&amp;#34;,\&amp;#34;istio-podinfo\&amp;#34;,\&amp;#34;istio-token\&amp;#34;,\&amp;#34;istiod-ca-cert\&amp;#34;],\&amp;#34;imagePullSecrets\&amp;#34;:null,\&amp;#34;revision\&amp;#34;:\&amp;#34;default\&amp;#34;}&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">}&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;APP_CONTAINERS&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;details&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;CLUSTER_ID&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;Kubernetes&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;ENVOY_PROMETHEUS_PORT&amp;#34;&lt;/span>: 15090,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;ENVOY_STATUS_PORT&amp;#34;&lt;/span>: 15021,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;INSTANCE_IPS&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;10.244.6.15&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;INTERCEPTION_MODE&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;REDIRECT&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&amp;lt;!--more--&amp;gt;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="检索特定-pod-中-envoy-实例的监听器配置的信息">检索特定 pod 中 Envoy 实例的监听器配置的信息&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>$ istioctl proxy-config listener &amp;lt;pod-name&amp;gt; &lt;span style="color:#f92672">[&lt;/span>flags&lt;span style="color:#f92672">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># istioctl pc l details-v1-7d88846999-lg849&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>ADDRESS PORT MATCH DESTINATION
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>10.96.0.10 &lt;span style="color:#ae81ff">53&lt;/span> ALL Cluster: outbound|53&lt;span style="color:#f92672">||&lt;/span>kube-dns.kube-system.svc.cluster.local
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>0.0.0.0 &lt;span style="color:#ae81ff">80&lt;/span> Trans: raw_buffer; App: http/1.1,h2c Route: &lt;span style="color:#ae81ff">80&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>0.0.0.0 &lt;span style="color:#ae81ff">80&lt;/span> ALL PassthroughCluster
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>10.96.84.49 &lt;span style="color:#ae81ff">80&lt;/span> Trans: raw_buffer; App: http/1.1,h2c Route: wordpress.default.svc.cluster.local:80
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>10.96.84.49 &lt;span style="color:#ae81ff">80&lt;/span> ALL Cluster: outbound|80&lt;span style="color:#f92672">||&lt;/span>wordpress.default.svc.cluster.local
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>10.96.0.1 &lt;span style="color:#ae81ff">443&lt;/span> ALL Cluster: outbound|443&lt;span style="color:#f92672">||&lt;/span>kubernetes.default.svc.cluster.local
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>10.96.114.129 &lt;span style="color:#ae81ff">443&lt;/span> ALL Cluster: outbound|443&lt;span style="color:#f92672">||&lt;/span>istio-ingressgateway.istio-system.svc.cluster.local
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>10.96.129.201 &lt;span style="color:#ae81ff">443&lt;/span> ALL Cluster: outbound|443&lt;span style="color:#f92672">||&lt;/span>ingress-controller-ingress-nginx-controller-admission.ingress-nginx.svc.cluster.local
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="检索特定-pod-中-envoy-实例的路由配置的信息">检索特定 pod 中 Envoy 实例的路由配置的信息&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>$ istioctl proxy-config route &amp;lt;pod-name&amp;gt; &lt;span style="color:#f92672">[&lt;/span>flags&lt;span style="color:#f92672">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># istioctl pc r details-v1-7d88846999-lg849&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>NAME DOMAINS MATCH VIRTUAL SERVICE
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">80&lt;/span> ingress-controller-ingress-nginx-controller.ingress-nginx, 10.96.150.192 /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">80&lt;/span> istio-egressgateway.istio-system, 10.96.133.49 /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">80&lt;/span> istio-ingressgateway.istio-system, 10.96.114.129 /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">80&lt;/span> lazyxds-placeholder-service.istio-system, 10.96.16.81 /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">80&lt;/span> tracing.istio-system, 10.96.4.72 /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">80&lt;/span> wordpress, wordpress.default + &lt;span style="color:#ae81ff">1&lt;/span> more... /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">8080&lt;/span> istio-egressgateway-lazyxds.istio-system, 10.96.231.188 /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="检索特定-pod-中-envoy-实例的-endpoint-配置的信息">检索特定 pod 中 Envoy 实例的 endpoint 配置的信息&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>$ istioctl proxy-config endpoints &amp;lt;pod-name&amp;gt; &lt;span style="color:#f92672">[&lt;/span>flags&lt;span style="color:#f92672">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="当不方便登录集群节点时可以通过dump-envoy配置然后通过istioctl来查看">当不方便登录集群节点时，可以通过dump envoy配置，然后通过istioctl来查看&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># kubectl exec details-v1-7d88846999-lg849 -c istio-proxy -- curl 127.0.0.1:15000/config_dump &amp;gt; details-config.json&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># istioctl pc r -f details-config.json&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>NAME DOMAINS MATCH VIRTUAL SERVICE
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">80&lt;/span> ingress-controller-ingress-nginx-controller.ingress-nginx, 10.96.150.192 /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">80&lt;/span> istio-egressgateway.istio-system, 10.96.133.49 /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">80&lt;/span> istio-ingressgateway.istio-system, 10.96.114.129 /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">80&lt;/span> lazyxds-placeholder-service.istio-system, 10.96.16.81 /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">80&lt;/span> tracing.istio-system, 10.96.4.72 /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">80&lt;/span> wordpress, wordpress.default + &lt;span style="color:#ae81ff">1&lt;/span> more... /*
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># istioctl pc l -f details-config.json&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>ADDRESS PORT MATCH DESTINATION
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>10.96.0.10 &lt;span style="color:#ae81ff">53&lt;/span> ALL Cluster: outbound|53&lt;span style="color:#f92672">||&lt;/span>kube-dns.kube-system.svc.cluster.local
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>0.0.0.0 &lt;span style="color:#ae81ff">80&lt;/span> Trans: raw_buffer; App: http/1.1,h2c Route: &lt;span style="color:#ae81ff">80&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>0.0.0.0 &lt;span style="color:#ae81ff">80&lt;/span> ALL PassthroughCluster
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>10.96.84.49 &lt;span style="color:#ae81ff">80&lt;/span> Trans: raw_buffer; App: http/1.1,h2c Route: wordpress.default.svc.cluster.local:80
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>10.96.84.49 &lt;span style="color:#ae81ff">80&lt;/span> ALL Cluster: outbound|80&lt;span style="color:#f92672">||&lt;/span>wordpress.default.svc.cluster.local
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>10.96.0.1 &lt;span style="color:#ae81ff">443&lt;/span> ALL Cluster: outbound|443&lt;span style="color:#f92672">||&lt;/span>kubernetes.default.svc.cluster.local
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>10.96.114.129 &lt;span style="color:#ae81ff">443&lt;/span> ALL Cluster: outbound|443&lt;span style="color:#f92672">||&lt;/span>istio-ingressgateway.istio-system.svc.cluster.local
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>10.96.129.201 &lt;span style="color:#ae81ff">443&lt;/span> ALL Cluster: outbound|443&lt;span style="color:#f92672">||&lt;/span>ingress-controller-ingress-nginx-controller-admission.ingress-nginx.svc.cluster.local
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>...
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item></channel></rss>
